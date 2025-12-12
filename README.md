@@ -22,6 +22,7 @@ http://localhost:8585/texasPage/texasIndex
 ### 配置
 reverse-server项目里面需要注意修改local/application.properties文件，里面有一些默认配置，比如端口号、数据库连接等  
 其中redis需要本地或远程连接一个
+当前项目用到的JDK版本为1.8
 
 ### 成员协作
 
