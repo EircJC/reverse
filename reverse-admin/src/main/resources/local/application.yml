@@ -1,0 +1,77 @@
+app:
+  datasource:
+    maximum-pool-size: 2
+    type: com.zaxxer.hikari.HikariDataSource
+    url: jdbc:mysql://localhost:3306/mythPoker?useSSL=false&characterEncoding=utf8&useCompress=true
+    username: root
+    password: root
+  name: mythPoker-admin
+  base:
+    url: ${config.server.baseUrl}
+
+config:
+  server:
+    baseUrl: http://localhost:8080
+
+
+jwt:
+  token:
+    secret: 30013818-12be-4100-c601-b64253273125
+    expiration: 604800
+
+management:
+  endpoints:
+    beans:
+      enabled: false
+    web:
+      base-path: /
+      exposure:
+        include: health,info,metrics,prometheus
+
+mybatis:
+  configuration:
+    default-fetch-size: 100
+    default-statement-timeout: 30
+    map-underscore-to-camel-case: true
+
+server:
+  tomcat:
+    accept-count: 100
+    accesslog:
+      buffered: true
+      directory: logs
+      enabled: true
+      file-date-format: .yyyy-MM-dd
+      pattern: '%{X-Forwarded-For}i %l %u %t "%r"  %h   %s %b %D ms;'
+      prefix: tomcat_access
+      rename-on-rotate: true
+      rotate: true
+      suffix: .log
+    background-processor-delay: 2s
+    basedir: .
+
+spring:
+  flyway:
+    enabled: false   # 默认关闭
+    baseline-description: baselines
+    baseline-on-migrate: true
+    baseline-version: 1
+  redis:
+    database: 1
+    host: localhost
+    port: 6379
+    password:
+    pool:
+      max-active: 100
+      max-idle: 8
+      max-wait: -1
+    timeout: 3000
+  servlet:
+    multipart:
+      max-file-size: 21MB
+      max-request-size: 121MB
+
+
+sso:
+  inner:
+    accountUrl: https://sso.demo.com

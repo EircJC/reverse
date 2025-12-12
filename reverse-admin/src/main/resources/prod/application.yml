@@ -1,0 +1,9 @@
+app:
+  id: mythPoker-admin
+
+apollo:
+  meta: http://apollo-prod.demo.com
+  bootstrap:
+    enabled: true
+    namespaces: application,demo.datasource,demo.redis,demo.external
+

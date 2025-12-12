@@ -1,0 +1,23 @@
+server:
+  tomcat:
+    accept-count: 100
+    accesslog:
+      buffered: true
+      directory: logs
+      enabled: true
+      file-date-format: .yyyy-MM-dd
+      pattern: '%{X-Forwarded-For}i %l %u %t "%r"  %h   %s %b %D ms;'
+      prefix: tomcat_access
+      rename-on-rotate: true
+      rotate: true
+      suffix: .log
+    background-processor-delay: 2s
+    basedir: .
+  port: 8585
+  servlet:
+    context-path: /texasPage
+
+spring:
+  mvc:
+    static-path-pattern: /**
+

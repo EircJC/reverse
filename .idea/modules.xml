@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/reverse-admin/reverse-admin.iml" filepath="$PROJECT_DIR$/reverse-admin/reverse-admin.iml" />
+      <module fileurl="file://$PROJECT_DIR$/reverse-common/reverse-common.iml" filepath="$PROJECT_DIR$/reverse-common/reverse-common.iml" />
+      <module fileurl="file://$PROJECT_DIR$/reverse-core/reverse-core.iml" filepath="$PROJECT_DIR$/reverse-core/reverse-core.iml" />
+      <module fileurl="file://$PROJECT_DIR$/reverse-server/reverse-server.iml" filepath="$PROJECT_DIR$/reverse-server/reverse-server.iml" />
+      <module fileurl="file://$PROJECT_DIR$/reverse-web/reverse-web.iml" filepath="$PROJECT_DIR$/reverse-web/reverse-web.iml" />
+    </modules>
+  </component>
+</project>

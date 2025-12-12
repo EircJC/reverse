@@ -1,0 +1,9 @@
+app:
+  id: mythPoker-server
+
+apollo:
+  meta: http://apollo-uat.demo.com
+  bootstrap:
+    enabled: true
+    namespaces: application,demo.datasource,demo.redis,demo.external
+

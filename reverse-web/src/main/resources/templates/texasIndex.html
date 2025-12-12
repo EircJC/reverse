@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html xmlns:color="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Texas Hold’em poker</title>
+    <meta charset="utf-8">
+</head>
+<style>
+    #canvasDiv{ position:absolute; top:0; left:0; width:1000px; height:530px; }
+    #messages{ position:absolute; top:560px; max-height: 600px; overflow: auto; left:15px; width:1000px;  }
+    #propsDiv{ margin-left:1000px; height:530px; margin-top: 20px;}
+    #infoDiv{ margin-left:1015px; height:100px; }
+    .white_content {
+        display: none;
+        position: absolute;
+        top: 25%;
+        left: 25%;
+        width: 55%;
+        height: 55%;
+        padding: 20px;
+        border: 1px solid orange;
+        background-color: white;
+        z-index:1002;
+        overflow: auto;
+    }
+</style>
+<body>
+<div id="infoDiv">
+    玩家在自己回合时可以使用技能卡，初始每个玩家拥有6个能量和2张技能卡，然后每回合都会额外获得2个能量+1张技能卡。需要注意每个技能卡拥有不同的能量消耗；
+    <br>   <font color="red" style="font-size: medium">注意：先使用技能卡再做过牌、下注、弃牌动作，否则会直接跳到下一个玩家操作</font>
+    <br>
+        技能分为主动<input type="image" src="texasImages/zhudong.png" style="width: 24px;height: 36px;">、
+        防御<input type="image" src="texasImages/fangyu.png" style="width: 24px;height: 36px;">、
+        陷阱<input type="image" src="texasImages/xianjing.png" style="width: 24px;height: 36px;">
+        3种类别
+    <br>
+        其中防御和陷阱是使用后被动触发，主动技能是使用后立即生效或对其他玩家剩余回合产生影响。
+    <br>
+        如果当前回合被对手通过技能卡限制使用或能量不够使用的卡牌会被渲染为 灰色<input type="image" src="texasImages/xianjing.png" style="width: 24px;height: 36px;filter: grayscale(1); ">暂时不可用
+</div>
+<div id="canvasDiv" ></div>
+<div id="propsDiv">
+    <div id="trapInfo" style="display: none">当前陷阱数： <span id="trapCount"></span>    ------------------------------------------------------------</div>
+    <div id="selectPlayer" class="white_content">请选择技能释放对象
+        <table id="selectPlayerContent">
+        </table>
+        <a href = "javascript:void(0)" onclick = "document.getElementById('selectPlayer').style.display='none'">点这里关闭</a>
+    </div>
+    <div id="selectReverseRound" class="white_content">请选择技能释放对象
+        <table id="selectReverseRoundContent">
+        </table>
+        <a href = "javascript:void(0)" onclick = "document.getElementById('selectReverseRound').style.display='none'">点这里关闭</a>
+    </div>
+    <table id="skill_play_table">
+    </table>
+    <div id="assignChipsInfo" class="white_content">
+        <table id="assignChipsContent">
+            <tr>
+                // 10秒不补充筹码就会自动退出房间
+                <td><input type='text' value='5000' id='assignChipsNum' readonly style="color: darkgrey"></td>
+                <td><input type='button' value='增加筹码' onclick="doAssignChips()"></td>
+                <td><input type='button' value='退出房间' onclick="exitRoom()"></td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<div id="registDiv">
+    <input id="name" type="text" style="border:2px solid groove;position:absolute;left:400px;top:140px;opacity:.5"/>
+    <input id="password" type="password" style="border:2px solid groove;position:absolute;left:400px;top:200px;opacity:.5"/>
+</div>
+<div id="roomDiv"></div>
+<div id="messages"></div>
+<script src="http://cdn.bootcss.com/jquery/3.1.1/jquery.js"></script>
+<script src="texasJS/view.js"></script>
+<script src="texasJS/message.js"></script>
+<script src="texasJS/controll.js"></script>
+<script src="texasJS/slipbar.js"></script>
+<script src="texasJS/music.js"></script>
+<script src="texasJS/poker.min.js"></script>
+<script src="texasJS/drawCards.js"></script>
+<script src="texasJS/skill.js"></script>
+
+<script type="text/javascript">
+    $(function () {
+        //初始化websocket连接
+        wsInit();
+        $.texasMusic.initMusic();
+        var canvas = document.createElement("canvas");
+        texasCanvas = canvas;
+        var ctx = canvas.getContext("2d");
+        canvas.width = 1000 //1316;
+        canvas.height = 530//680;
+        canvas.id = "texasCanvas";
+        $(canvas).appendTo("#canvasDiv");
+        texasContext = canvas.getContext("2d");
+
+        // 游戏主函数
+        var then = Date.now();
+        var main = function () {
+            var now = Date.now();
+            var delta = now - then;
+            //传入时间差
+            update(delta / 1000);
+            render();
+            then = now;
+            // 立即调用主函数
+            requestAnimationFrame(main);
+        };
+        // 画出所有物体
+        var render = function () {
+            //画背景图
+            drawBackground();
+            if (gamebackGroundType == "room" && backGroundLoaded && chipsImage.complete) {
+                //玩家头像
+                drawPlayersPhoto(screenWidth, screenHeight);
+                //玩家信息
+                drawPlayerInfos();
+                //玩家手牌或牌背
+                drawCards();
+                //玩家下注
+                drawBetChips();
+                //玩牌控制按钮
+                drawControllButtons();
+                //公共牌
+                drawCommonCards();
+                //奖池
+                drawPotChips();
+                //画倒计时条
+                drawTimeBar();
+
+                // 江超：新增卡牌相关begin
+                drawPlayerSkillInfos();
+                // 江超：新增卡牌相关end
+                DrawSlipBar.init();
+            }
+        };
+        // 更新游戏对象的属性
+        var update = function (modifier) {
+            //时间*速度=距离
+            updateTimeBar(modifier);
+        };
+        main();
+    });
+</script>
+</body>
+</html>
