@@ -2,8 +2,8 @@
  * Created by lxr on 2016/10/30.
  */
 var websocket = null;
-// var wsip = "ws://127.0.0.1:8081/texasDemo/ws/texas";
-var wsip = "ws://47.107.232.93:29797/texasDemo/ws/texas";
+var wsip = "ws://127.0.0.1:8081/texasServer/ws/texas";
+// var wsip = "ws://47.107.232.93:29797/texasDemo/ws/texas";
 // var wsip_prod = "ws://120.26.217.116:8080/texas/ws/texas";
 // 发送消息映射
 var mapping = {
