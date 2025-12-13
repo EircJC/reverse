@@ -2,22 +2,16 @@ app:
   datasource:
     maximum-pool-size: 2
     type: com.zaxxer.hikari.HikariDataSource
-    url: jdbc:mysql://localhost:3306/mythPoker?useSSL=false&characterEncoding=utf8&useCompress=true
+    url: jdbc:mysql://localhost:3306/texas?useSSL=false&characterEncoding=utf8&useCompress=true
     username: root
     password: root
-  name: mythPoker-admin
+  name: reverse-admin
   base:
     url: ${config.server.baseUrl}
 
 config:
   server:
     baseUrl: http://localhost:8080
-
-
-jwt:
-  token:
-    secret: 30013818-12be-4100-c601-b64253273125
-    expiration: 604800
 
 management:
   endpoints:
@@ -72,6 +66,3 @@ spring:
       max-request-size: 121MB
 
 
-sso:
-  inner:
-    accountUrl: https://sso.demo.com
