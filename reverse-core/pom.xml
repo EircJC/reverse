@@ -16,11 +16,11 @@
       <artifactId>${project.parent.artifactId}-common</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
-    <dependency>
-      <groupId>com.yulink.texas</groupId>
-      <artifactId>reverse-common-util</artifactId>
-      <version>${common.version}</version>
-    </dependency>
+<!--    <dependency>-->
+<!--      <groupId>com.yulink.texas</groupId>-->
+<!--      <artifactId>reverse-common-util</artifactId>-->
+<!--      <version>${common.version}</version>-->
+<!--    </dependency>-->
 
     <!-- mybatis begin -->
     <dependency>
