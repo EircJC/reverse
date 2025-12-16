@@ -1,5 +1,6 @@
 package com.yulink.texas.server.common.room;
 
+import com.yulink.texas.common.utils.CodeUtil;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Stack;
@@ -33,6 +34,7 @@ public class RoomTypeList {
 	public static Room getNewRoom(int type, int level) {
 		Room room = new Room();
 		int jMaxPlayer = 6;
+		room.setRoomNo(CodeUtil.sequenceNo("ROOM-"));
 		room.setMaxPlayers(6);
 		room.setMinPlayers(2);
 		room.setDealer(1);

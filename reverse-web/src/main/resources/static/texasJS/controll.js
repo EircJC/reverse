@@ -423,7 +423,7 @@ function onGameStart(e, data) {
     // 清空操作记录列表
     $("#infoDiv").hide();
     $("#trapInfo").show();
-    $("#messages").html("新一局游戏开始");
+    $("#messages").html("新一局游戏开始 ");
     roomInfo.dealerDrawed = false;
     isExitRoom = false;
     roundMaxBet = 0;
@@ -439,6 +439,7 @@ function onGameStart(e, data) {
     if (data.state == 1) {
         $.texasMusic.playSendCardMu();
         roomInfo = JSON.parse(data.message);
+        $("#messages").append("<br>房间号："+roomInfo.roomNo);
         // 开局重置ingame状态
         for (var i in players) {
             players[i].ingame = false;

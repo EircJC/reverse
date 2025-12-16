@@ -32,6 +32,11 @@ management:
       exposure:
         include: health,info,metrics,prometheus
 
+netty:
+  websocket:
+    port: 9000
+    path: /ws/texas
+
 mybatis:
   configuration:
     default-fetch-size: 100

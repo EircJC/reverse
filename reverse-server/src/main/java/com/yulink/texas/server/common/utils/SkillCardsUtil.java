@@ -11,7 +11,9 @@ import com.yulink.texas.server.common.entity.UseSkill;
 import com.yulink.texas.server.common.room.Room;
 import com.yulink.texas.server.constants.SkillResultEnum;
 import com.yulink.texas.server.constants.SkillTypeEnum;
+import com.yulink.texas.server.manager.RoomManager;
 import com.yulink.texas.server.ws.TexasUtil;
+import io.netty.channel.Channel;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -19,10 +21,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
-import javax.websocket.Session;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 /**
  * @Author: chao.jiang
@@ -30,6 +33,7 @@ import org.apache.logging.log4j.Logger;
  * @Copyright (c) bitmain.com All Rights Reserved
  */
 
+@Component
 public class SkillCardsUtil {
     private static Logger logger = LogManager.getLogger(SkillCardsUtil.class);
 
@@ -44,6 +48,8 @@ public class SkillCardsUtil {
     // 第三方承受技能玩家 例如：SDN_18等
     private static PlayerVO thirdDestPlayer = null;
 
+    @Autowired
+    public RoomManager roomManager;
     /**
      * 为房间中正在游戏的玩家分配技能卡
      * @param room
@@ -141,9 +147,9 @@ public class SkillCardsUtil {
      * @param session
      * @param message
      */
-    public static void useSkill(Session session, String message) {
+    public void useSkill(Channel channel, String message) {
         UseSkill useSkill = JSONObject.parseObject(message, UseSkill.class);
-        PlayerVO player = TexasUtil.getPlayerBySessionId(session.getId());
+        PlayerVO player = TexasUtil.getPlayerByChannelId(channel.id().asShortText());
         Room room = player.getRoom();
 
         thirdDestPlayer = null;
@@ -1380,7 +1386,7 @@ public class SkillCardsUtil {
      * @param message
      * @return
      */
-    public static SkillResultEnum trapSkillVerify(SkillDictionaryVO skillDictionary, PlayerVO player, String type, String message) {
+    public SkillResultEnum trapSkillVerify(SkillDictionaryVO skillDictionary, PlayerVO player, String type, String message) {
         Room room = player.getRoom();
         if(room == null) {
             return SkillResultEnum.NONE;
@@ -1416,13 +1422,13 @@ public class SkillCardsUtil {
                             // 判断玩家执行check、还是call
                             int chip = getCheckOrCall(room, player);
                             if(chip == 0) {
-                                player.getRoom().check(player, true);
+                                roomManager.check(player, true);
                             } else {
-                                player.getRoom().betchipIn(player, chip, true);
+                                roomManager.betchipIn(player, chip, true);
                             }
                         }
                         if(SkillResultEnum.FOLD.getCode().equals(trapResult.getCode())) {
-                            player.getRoom().fold(player);
+                            roomManager.fold(player);
                         }
                         if(SkillResultEnum.ALLIN.getCode().equals(trapResult.getCode())) {
 

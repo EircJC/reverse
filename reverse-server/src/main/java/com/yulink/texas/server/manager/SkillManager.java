@@ -6,10 +6,10 @@ import com.yulink.texas.core.service.SkillDictionaryService;
 import com.yulink.texas.server.common.utils.JsonUtils;
 import com.yulink.texas.server.common.utils.RedisManager;
 import com.yulink.texas.server.common.utils.SkillCardsUtil;
+import io.netty.channel.Channel;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Resource;
-import javax.websocket.Session;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
@@ -26,6 +26,9 @@ public class SkillManager {
 
     @Resource
     private RedisManager rdisManager;
+
+    @Resource
+    private SkillCardsUtil skillCardsUtil;
 
     @Resource
     private SkillDictionaryService skillDictionaryService;
@@ -58,7 +61,7 @@ public class SkillManager {
 
     }
 
-    public void useSkill(Session session, String message) {
-        SkillCardsUtil.useSkill(session, message);
+    public void useSkill(Channel channel, String message) {
+        skillCardsUtil.useSkill(channel, message);
     }
 }

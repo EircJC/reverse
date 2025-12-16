@@ -90,6 +90,12 @@
       <artifactId>h2</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- 在dependencies标签内添加Netty依赖 -->
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-all</artifactId>
+      <version>4.1.77.Final</version>
+    </dependency>
 <!--    <dependency>-->
 <!--      <groupId>com.yulink.texas</groupId>-->
 <!--      <artifactId>reverse-common-admin</artifactId>-->
