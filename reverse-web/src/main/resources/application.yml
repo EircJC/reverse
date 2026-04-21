@@ -21,3 +21,13 @@ spring:
   mvc:
     static-path-pattern: /**
 
+texas:
+  websocket:
+    enabled: true
+    host:
+    port: 9000
+    path: /ws/texas
+    reconnect-enabled: true
+    reconnect-initial-delay-millis: 1000
+    reconnect-max-delay-millis: 10000
+    reconnect-max-attempts: 0

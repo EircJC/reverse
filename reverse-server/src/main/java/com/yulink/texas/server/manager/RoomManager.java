@@ -49,6 +49,22 @@ public class RoomManager {
         texasUtil.inRoom(channel, message);
     }
 
+    public void getRoomLevelStats(Channel channel, String message) {
+        texasUtil.getRoomLevelStats(channel, message);
+    }
+
+    public void getRoomList(Channel channel, String message) {
+        texasUtil.getRoomList(channel, message);
+    }
+
+    public void inRoomByRoomNo(Channel channel, String message) {
+        texasUtil.inRoomByRoomNo(channel, message);
+    }
+
+    public void createRoomAndIn(Channel channel, String message) {
+        texasUtil.createRoomAndIn(channel, message);
+    }
+
     public void outRoom(Channel channel, String message, boolean sendOrNot) {
         texasUtil.outRoom(channel, message, sendOrNot);
     }

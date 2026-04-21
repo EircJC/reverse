@@ -1,57 +1,1287 @@
 <!DOCTYPE html>
-<html xmlns:color="http://www.w3.org/1999/xhtml">
+<html xmlns:color="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>Texas Hold’em poker</title>
     <meta charset="utf-8">
 </head>
 <style>
-    #canvasDiv{ position:absolute; top:0; left:0; width:1000px; height:530px; }
-    #messages{ position:absolute; top:560px; max-height: 600px; overflow: auto; left:15px; width:1000px;  }
-    #propsDiv{ margin-left:1000px; height:530px; margin-top: 20px;}
-    #infoDiv{ margin-left:1015px; height:100px; }
+    body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+                radial-gradient(circle at top, rgba(255, 214, 102, 0.16), transparent 34%),
+                linear-gradient(135deg, #0b1020 0%, #111a2d 45%, #0d3b2e 100%);
+        color: #f6f8ff;
+        font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    #pageShell {
+        position: relative;
+        width: 1460px;
+        margin: 18px auto;
+        min-height: 1040px;
+    }
+    #canvasDiv{
+        position:absolute;
+        top:0;
+        left:0;
+        width:1000px;
+        height:530px;
+        border-radius: 28px;
+        overflow: hidden;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+    }
+    #messages{
+        position:absolute;
+        top:560px;
+        left:0;
+        width:1000px;
+        height: 400px;
+        padding: 18px;
+        box-sizing: border-box;
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(8, 12, 24, 0.78) 0%, rgba(6, 10, 20, 0.72) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255,255,255,0.04);
+        backdrop-filter: blur(18px);
+    }
+    .messages-shell{
+        height: 100%;
+        display:flex;
+        flex-direction:column;
+        gap: 16px;
+    }
+    .messages-head{
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap: 14px;
+    }
+    .messages-title{
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+        color: #ffffff;
+    }
+    .messages-subtitle{
+        margin-top: 6px;
+        color: rgba(223, 230, 255, 0.68);
+        font-size: 13px;
+        line-height: 1.7;
+    }
+    .messages-status{
+        display:inline-flex;
+        align-items:center;
+        gap:8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.05);
+        color: rgba(236, 241, 255, 0.78);
+        font-size: 12px;
+        white-space: nowrap;
+    }
+    .messages-status::before{
+        content:"";
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #8ea2ff;
+        box-shadow: 0 0 12px rgba(142, 162, 255, 0.55);
+    }
+    .messages-status.success{
+        color: #c7ffd8;
+        background: rgba(58, 171, 102, 0.14);
+        border-color: rgba(58, 171, 102, 0.2);
+    }
+    .messages-status.success::before{
+        background: #5ae18b;
+        box-shadow: 0 0 12px rgba(90, 225, 139, 0.55);
+    }
+    .messages-status.warning{
+        color: #ffe3aa;
+        background: rgba(255, 186, 83, 0.14);
+        border-color: rgba(255, 186, 83, 0.2);
+    }
+    .messages-status.warning::before{
+        background: #ffbf5a;
+        box-shadow: 0 0 12px rgba(255, 191, 90, 0.55);
+    }
+    .messages-status.danger{
+        color: #ffc7c7;
+        background: rgba(255, 93, 93, 0.14);
+        border-color: rgba(255, 93, 93, 0.22);
+    }
+    .messages-status.danger::before{
+        background: #ff6f6f;
+        box-shadow: 0 0 12px rgba(255, 111, 111, 0.55);
+    }
+    .messages-stream{
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 6px;
+    }
+    .messages-stream::-webkit-scrollbar {
+        width: 8px;
+    }
+    .messages-stream::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.22);
+    }
+    .message-entry{
+        display:flex;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.06);
+        color: rgba(241, 244, 255, 0.92);
+        line-height: 1.75;
+        margin-bottom: 10px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+    }
+    .message-entry:last-child{
+        margin-bottom: 0;
+    }
+    .message-entry::before{
+        content:"";
+        flex: 0 0 10px;
+        width: 10px;
+        height: 10px;
+        margin-top: 8px;
+        border-radius: 50%;
+        background: #7c93ff;
+        box-shadow: 0 0 12px rgba(124, 147, 255, 0.45);
+    }
+    .message-entry.success::before{
+        background: #63de93;
+        box-shadow: 0 0 12px rgba(99, 222, 147, 0.45);
+    }
+    .message-entry.warning::before{
+        background: #ffcf6f;
+        box-shadow: 0 0 12px rgba(255, 207, 111, 0.42);
+    }
+    .message-entry.danger::before{
+        background: #ff8585;
+        box-shadow: 0 0 12px rgba(255, 133, 133, 0.42);
+    }
+    .message-entry.accent::before{
+        background: #6ad7ff;
+        box-shadow: 0 0 12px rgba(106, 215, 255, 0.42);
+    }
+    .message-meta{
+        flex:1;
+        min-width:0;
+    }
+    .message-time{
+        display:block;
+        margin-bottom: 4px;
+        color: rgba(194, 203, 232, 0.56);
+        font-size: 11px;
+        letter-spacing: .5px;
+    }
+    .message-text{
+        word-break: break-word;
+        font-size: 13px;
+    }
+    .message-empty{
+        height: 100%;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        text-align:center;
+        border-radius: 18px;
+        border: 1px dashed rgba(255,255,255,0.10);
+        background: rgba(255,255,255,0.03);
+        color: rgba(219, 227, 253, 0.66);
+        line-height: 1.8;
+        padding: 0 20px;
+        box-sizing: border-box;
+    }
+    #propsDiv{
+        position: absolute;
+        top: 0;
+        left: 1030px;
+        width: 430px;
+        height: 960px;
+        padding: 22px;
+        box-sizing: border-box;
+        border-radius: 24px;
+        background: rgba(10, 16, 28, 0.68);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 22px 48px rgba(0, 0, 0, 0.25);
+        backdrop-filter: blur(14px);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        overflow: visible;
+    }
+    .props-header{
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:12px;
+    }
+    .props-title{
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+        color: #ffffff;
+    }
+    .props-subtitle{
+        margin-top: 6px;
+        color: rgba(227, 233, 255, 0.72);
+        font-size: 13px;
+        line-height: 1.7;
+    }
+    .trap-badge{
+        display:none;
+        align-items:center;
+        gap:8px;
+        padding: 10px 14px;
+        border-radius: 16px;
+        background: rgba(255, 110, 110, 0.12);
+        border: 1px solid rgba(255, 110, 110, 0.18);
+        color: #ffb4b4;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+    .trap-badge strong{
+        font-size: 16px;
+        color: #fff;
+    }
+    #skill_play_table{
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+    #skill_play_table::-webkit-scrollbar{
+        width: 8px;
+    }
+    #skill_play_table::-webkit-scrollbar-thumb{
+        border-radius: 999px;
+        background: rgba(255,255,255,0.18);
+    }
+    .skill-empty{
+        padding: 26px 18px;
+        border-radius: 18px;
+        text-align: center;
+        color: rgba(224, 231, 255, 0.7);
+        background: rgba(255,255,255,0.04);
+        border: 1px dashed rgba(255,255,255,0.12);
+        line-height: 1.8;
+    }
+    .player-skill-card{
+        margin-bottom: 16px;
+        padding: 16px;
+        border-radius: 20px;
+        background: linear-gradient(180deg, rgba(18, 26, 44, 0.96) 0%, rgba(12, 18, 32, 0.92) 100%);
+        border: 1px solid rgba(255,255,255,0.08);
+        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+    }
+    .player-skill-card.self{
+        border-color: rgba(255, 214, 111, 0.32);
+        box-shadow: 0 16px 36px rgba(255, 180, 60, 0.12);
+    }
+    .player-skill-card.compact{
+        padding: 12px 14px;
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(15, 22, 38, 0.94) 0%, rgba(10, 15, 28, 0.90) 100%);
+    }
+    .player-skill-card.compact .player-skill-head{
+        gap: 10px;
+        align-items: flex-start;
+    }
+    .player-skill-card.compact .player-avatar{
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+    }
+    .player-skill-card.compact .player-name{
+        font-size: 14px;
+    }
+    .player-skill-card.compact .player-name-row{
+        margin-bottom: 4px;
+    }
+    .player-skill-card.compact .player-status-line{
+        font-size: 11px;
+        line-height: 1.5;
+    }
+    .player-skill-card.compact .player-metrics{
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+    }
+    .player-skill-card.compact .player-metric{
+        padding: 8px 6px;
+        border-radius: 12px;
+        text-align: center;
+    }
+    .player-skill-card.compact .player-metric-label{
+        margin-bottom: 4px;
+        font-size: 10px;
+        letter-spacing: .2px;
+    }
+    .player-skill-card.compact .player-metric-value{
+        font-size: 14px;
+    }
+    .player-skill-head{
+        display:flex;
+        align-items:center;
+        gap:14px;
+    }
+    .player-avatar{
+        width: 62px;
+        height: 62px;
+        border-radius: 18px;
+        object-fit: cover;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.06);
+    }
+    .player-main{
+        flex:1;
+        min-width:0;
+    }
+    .player-name-row{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:10px;
+        margin-bottom: 6px;
+    }
+    .player-name{
+        font-size: 16px;
+        font-weight: 700;
+        color: #ffffff;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .player-badge{
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: .4px;
+    }
+    .player-badge.self{
+        background: rgba(255, 214, 111, 0.16);
+        color: #ffd98a;
+    }
+    .player-badge.fold{
+        background: rgba(255, 103, 103, 0.14);
+        color: #ffb1b1;
+    }
+    .player-badge.wait{
+        background: rgba(116, 136, 255, 0.16);
+        color: #b7c3ff;
+    }
+    .player-status-line{
+        color: rgba(220, 228, 255, 0.72);
+        font-size: 12px;
+        line-height: 1.6;
+    }
+    .player-metrics{
+        display:grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+    }
+    .player-metric{
+        padding: 12px;
+        border-radius: 16px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.06);
+    }
+    .player-metric-label{
+        display:block;
+        font-size: 11px;
+        color: rgba(205, 214, 241, 0.68);
+        letter-spacing: .4px;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+    }
+    .player-metric-value{
+        font-size: 18px;
+        font-weight: 700;
+        color: #ffffff;
+    }
+    .skill-hand-title{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:10px;
+        margin: 16px 0 12px;
+    }
+    .skill-hand-title span{
+        color: rgba(239, 243, 255, 0.88);
+        font-size: 14px;
+        font-weight: 600;
+    }
+    .skill-hand-tip{
+        color: rgba(205, 214, 241, 0.62);
+        font-size: 11px;
+    }
+    .skill-card-grid{
+        display:grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+    .skill-card-item{
+        position: relative;
+        padding: 12px;
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%);
+        border: 1px solid rgba(255,255,255,0.08);
+        transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, opacity .16s ease;
+        overflow: visible;
+    }
+    .skill-card-item.clickable{
+        cursor: pointer;
+    }
+    .skill-card-item.clickable:hover{
+        transform: translateY(-2px);
+        border-color: rgba(255, 214, 111, 0.34);
+        box-shadow: 0 14px 28px rgba(0,0,0,0.22);
+    }
+    .skill-card-item.disabled{
+        opacity: .62;
+        cursor: not-allowed;
+    }
+    .skill-card-item.type-1{
+        box-shadow: inset 0 0 0 1px rgba(255, 118, 118, 0.08);
+    }
+    .skill-card-item.type-2{
+        box-shadow: inset 0 0 0 1px rgba(92, 172, 255, 0.08);
+    }
+    .skill-card-item.type-3{
+        box-shadow: inset 0 0 0 1px rgba(95, 210, 158, 0.08);
+    }
+    .skill-card-thumb{
+        width: 100%;
+        height: 148px;
+        object-fit: cover;
+        border-radius: 14px;
+        display: block;
+        background: rgba(255,255,255,0.04);
+    }
+    .skill-card-item.disabled .skill-card-thumb{
+        filter: grayscale(1);
+    }
+    .skill-card-top{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:8px;
+        margin-bottom: 10px;
+    }
+    .skill-type-pill{
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    .skill-type-pill.type-1{
+        background: rgba(255, 94, 94, 0.14);
+        color: #ffaeae;
+    }
+    .skill-type-pill.type-2{
+        background: rgba(92, 172, 255, 0.14);
+        color: #a6d4ff;
+    }
+    .skill-type-pill.type-3{
+        background: rgba(95, 210, 158, 0.14);
+        color: #9ff0c8;
+    }
+    .skill-level{
+        color: rgba(255,255,255,0.76);
+        font-size: 12px;
+        font-weight: 700;
+    }
+    .skill-card-name{
+        margin: 12px 0 8px;
+        color: #fff;
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 1.5;
+        min-height: 44px;
+    }
+    .skill-card-stats{
+        display:grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+    .skill-stat{
+        padding: 8px 10px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.05);
+        color: rgba(228, 234, 255, 0.78);
+        font-size: 12px;
+        line-height: 1.5;
+    }
+    .skill-stat strong{
+        display:block;
+        margin-top: 2px;
+        color: #fff;
+        font-size: 14px;
+    }
+    .skill-card-tooltip{
+        position:absolute;
+        left: 0;
+        right: 0;
+        bottom: calc(100% + 10px);
+        padding: 12px;
+        border-radius: 14px;
+        background: rgba(8, 12, 22, 0.96);
+        border: 1px solid rgba(255,255,255,0.10);
+        box-shadow: 0 18px 36px rgba(0,0,0,0.28);
+        color: rgba(235, 240, 255, 0.9);
+        font-size: 12px;
+        line-height: 1.7;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(8px);
+        transition: opacity .14s ease, transform .14s ease, visibility .14s ease;
+        z-index: 12;
+        pointer-events:none;
+    }
+    .skill-card-item:hover .skill-card-tooltip{
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+    .skill-empty-hand{
+        padding: 14px 16px;
+        border-radius: 16px;
+        color: rgba(220, 228, 255, 0.68);
+        background: rgba(255,255,255,0.04);
+        border: 1px dashed rgba(255,255,255,0.10);
+        font-size: 13px;
+        line-height: 1.7;
+    }
+    #infoDiv{
+        position: absolute;
+        top: 0;
+        left: 1030px;
+        width: 430px;
+        min-height: 330px;
+        padding: 20px 22px;
+        box-sizing: border-box;
+        border-radius: 24px;
+        background: rgba(10, 16, 28, 0.68);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        line-height: 1.8;
+        color: rgba(241, 244, 255, 0.88);
+        box-shadow: 0 22px 48px rgba(0, 0, 0, 0.22);
+        backdrop-filter: blur(14px);
+    }
+    .info-title{
+        margin: 0 0 14px;
+        font-size: 22px;
+        font-weight: 700;
+        color: #fff;
+    }
+    .info-tip{
+        display: inline-flex;
+        align-items: center;
+        margin-bottom: 14px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(255, 219, 135, 0.14);
+        color: #ffd98a;
+        font-size: 12px;
+        letter-spacing: .5px;
+    }
+    .info-body{
+        color: rgba(241, 244, 255, 0.88);
+        font-size: 14px;
+        line-height: 1.95;
+    }
+    .info-body strong{
+        color: #fff;
+    }
+    .info-highlight{
+        margin-top: 12px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: rgba(255, 84, 84, 0.08);
+        border: 1px solid rgba(255, 84, 84, 0.18);
+        color: #ff8e8e;
+        font-weight: 600;
+    }
+    #sceneOverlays{
+        position:absolute;
+        top:0;
+        left:0;
+        width:1000px;
+        height:530px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        pointer-events:none;
+        z-index:20;
+    }
+    .scene-panel{
+        pointer-events:auto;
+        width: 430px;
+        padding: 30px 32px;
+        border-radius: 28px;
+        background: linear-gradient(180deg, rgba(13, 19, 33, 1) 0%, rgba(9, 14, 25, 1) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        box-shadow: 0 26px 64px rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(24px);
+    }
+    .scene-badge{
+        display:inline-flex;
+        align-items:center;
+        gap:8px;
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: rgba(255, 215, 138, 0.16);
+        color: #ffd98a;
+        font-size: 12px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
+    .scene-title{
+        margin: 16px 0 10px;
+        font-size: 34px;
+        line-height: 1.2;
+        font-weight: 700;
+        color: #ffffff;
+    }
+    .scene-subtitle{
+        margin: 0 0 22px;
+        color: rgba(226, 232, 255, 0.72);
+        line-height: 1.7;
+        font-size: 14px;
+    }
+    .field-group{
+        margin-bottom: 16px;
+    }
+    .field-label{
+        display:block;
+        margin-bottom: 8px;
+        font-size: 12px;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        color: rgba(201, 210, 237, 0.74);
+    }
+    .scene-input{
+        width: 100%;
+        height: 50px;
+        padding: 0 16px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+        outline: none;
+        box-sizing: border-box;
+        transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+    }
+    .scene-input:focus{
+        border-color: rgba(129, 199, 255, 0.75);
+        background: rgba(255, 255, 255, 0.12);
+        box-shadow: 0 0 0 4px rgba(79, 140, 255, 0.18);
+    }
+    .scene-input::placeholder{
+        color: rgba(227, 232, 255, 0.42);
+    }
+    .panel-actions{
+        display:flex;
+        gap: 12px;
+        margin-top: 24px;
+    }
+    .panel-btn{
+        flex:1;
+        height: 48px;
+        border: none;
+        border-radius: 16px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease;
+    }
+    .panel-btn:hover{
+        transform: translateY(-1px);
+        box-shadow: 0 16px 30px rgba(0, 0, 0, 0.24);
+    }
+    .panel-btn.primary{
+        color: #10203d;
+        background: linear-gradient(135deg, #ffd36f 0%, #ffb347 100%);
+    }
+    .panel-btn.secondary{
+        color: #fff;
+        background: linear-gradient(135deg, rgba(99, 130, 255, 0.92) 0%, rgba(92, 66, 255, 0.92) 100%);
+    }
+    .panel-footnote{
+        margin-top: 16px;
+        color: rgba(206, 214, 237, 0.7);
+        font-size: 12px;
+        line-height: 1.7;
+    }
+    #registDiv{
+        position: relative;
+        overflow: hidden;
+    }
+    #registDiv::before{
+        content:"";
+        position:absolute;
+        inset:0;
+        border-radius: 28px;
+        background:
+                linear-gradient(180deg, rgba(255,255,255,0.04), transparent 28%),
+                linear-gradient(180deg, rgba(8, 12, 20, 0.38), rgba(8, 12, 20, 0.38));
+        pointer-events:none;
+    }
+    #registDiv::after{
+        content:"";
+        position:absolute;
+        inset:0;
+        border-radius: 28px;
+        background: rgba(10, 14, 24, 0.28);
+        pointer-events:none;
+    }
+    #registDiv > *{
+        position: relative;
+        z-index: 2;
+    }
+    .lobby-panel{
+        width: 860px;
+        display: none;
+    }
+    .lobby-header{
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:16px;
+        margin-bottom: 22px;
+    }
+    .lobby-user{
+        padding: 10px 14px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(235, 241, 255, 0.82);
+        font-size: 13px;
+        white-space: nowrap;
+    }
+    .room-grid{
+        display:grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+    .room-card{
+        position: relative;
+        padding: 22px 20px 20px;
+        border-radius: 22px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: linear-gradient(160deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.03) 100%);
+        color: #fff;
+        text-align: left;
+        cursor: pointer;
+        overflow: hidden;
+        transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+    .room-card:hover{
+        transform: translateY(-3px);
+        border-color: rgba(255, 219, 135, 0.5);
+        box-shadow: 0 18px 38px rgba(0, 0, 0, 0.26);
+    }
+    .room-card::after{
+        content:"";
+        position:absolute;
+        inset:auto -30px -40px auto;
+        width: 130px;
+        height: 130px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.08);
+        filter: blur(4px);
+    }
+    .room-tag{
+        display:inline-block;
+        margin-bottom: 14px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.1);
+        color: rgba(255, 244, 212, 0.92);
+        font-size: 12px;
+        letter-spacing: .5px;
+    }
+    .room-name{
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+    .room-desc{
+        color: rgba(227, 233, 255, 0.74);
+        line-height: 1.7;
+        min-height: 72px;
+        font-size: 14px;
+    }
+    .room-meta{
+        display:flex;
+        gap: 10px;
+        margin-top: 14px;
+        flex-wrap: wrap;
+    }
+    .room-pill{
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.08);
+        color: rgba(236, 241, 255, 0.84);
+        font-size: 12px;
+    }
+    .room-card.classic{
+        background: linear-gradient(160deg, rgba(44, 181, 120, 0.18) 0%, rgba(14, 52, 38, 0.42) 100%);
+    }
+    .room-card.skill{
+        background: linear-gradient(160deg, rgba(93, 100, 255, 0.22) 0%, rgba(29, 24, 76, 0.42) 100%);
+    }
+    .lobby-back{
+        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(255,255,255,0.06);
+        color: rgba(239, 244, 255, 0.88);
+        height: 38px;
+        padding: 0 14px;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: background .16s ease, transform .16s ease;
+    }
+    .lobby-back:hover{
+        background: rgba(255,255,255,0.11);
+        transform: translateY(-1px);
+    }
+    .blind-grid{
+        display:grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+    }
+    .blind-card{
+        min-height: 286px;
+        padding: 20px;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 22px;
+        background: linear-gradient(160deg, rgba(93, 100, 255, 0.20), rgba(15, 23, 42, 0.62));
+        color: #fff;
+        text-align: left;
+        cursor: pointer;
+        transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+    .blind-card:hover{
+        transform: translateY(-3px);
+        border-color: rgba(255, 219, 135, 0.5);
+        box-shadow: 0 18px 38px rgba(0,0,0,0.26);
+    }
+    .blind-card.level-0{
+        background: linear-gradient(160deg, rgba(55, 190, 138, 0.20), rgba(13, 55, 41, 0.48));
+    }
+    .blind-card.level-1{
+        background: linear-gradient(160deg, rgba(87, 139, 255, 0.22), rgba(24, 35, 82, 0.50));
+    }
+    .blind-card.level-2{
+        background: linear-gradient(160deg, rgba(255, 171, 77, 0.24), rgba(84, 43, 16, 0.48));
+    }
+    .lobby-stat-grid{
+        display:grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 18px;
+    }
+    .lobby-stat{
+        padding: 12px;
+        border-radius: 16px;
+        background: rgba(255,255,255,0.07);
+        border: 1px solid rgba(255,255,255,0.08);
+    }
+    .lobby-stat strong{
+        display:block;
+        color:#fff;
+        font-size: 22px;
+        line-height: 1;
+    }
+    .lobby-stat span{
+        display:block;
+        margin-top: 7px;
+        color: rgba(224, 232, 255, 0.70);
+        font-size: 12px;
+    }
+    .room-list-grid{
+        display:flex;
+        flex-direction:column;
+        gap: 12px;
+        max-height: 420px;
+        overflow-y:auto;
+        padding-right: 4px;
+    }
+    .room-list-grid::-webkit-scrollbar{
+        width: 8px;
+    }
+    .room-list-grid::-webkit-scrollbar-thumb{
+        border-radius:999px;
+        background: rgba(255,255,255,0.20);
+    }
+    .room-list-card{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap: 16px;
+        padding: 16px;
+        border-radius: 18px;
+        background: rgba(255,255,255,0.055);
+        border: 1px solid rgba(255,255,255,0.08);
+    }
+    .room-list-card.open{
+        border-color: rgba(89, 225, 150, 0.20);
+        background: rgba(63, 197, 132, 0.08);
+    }
+    .room-list-card.full{
+        opacity: .72;
+    }
+    .room-list-no{
+        color:#fff;
+        font-size: 16px;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+    .room-list-meta{
+        display:flex;
+        flex-wrap:wrap;
+        gap: 8px;
+    }
+    .room-list-meta span{
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.08);
+        color: rgba(231, 237, 255, 0.78);
+        font-size: 12px;
+    }
+    .room-join-btn,
+    .create-room-btn{
+        border: none;
+        border-radius: 14px;
+        cursor:pointer;
+        font-weight: 700;
+        transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease;
+    }
+    .room-join-btn{
+        flex: 0 0 auto;
+        height: 42px;
+        padding: 0 18px;
+        color:#10203d;
+        background: linear-gradient(135deg, #7df0b0 0%, #44d985 100%);
+    }
+    .room-join-btn:hover,
+    .create-room-btn:hover{
+        transform: translateY(-1px);
+        box-shadow: 0 14px 26px rgba(0,0,0,0.22);
+    }
+    .room-join-btn.disabled{
+        cursor:not-allowed;
+        color: rgba(238, 243, 255, 0.62);
+        background: rgba(255,255,255,0.10);
+    }
+    .create-room-btn{
+        min-height: 50px;
+        color:#10203d;
+        background: linear-gradient(135deg, #ffd36f 0%, #ffb347 100%);
+        font-size: 15px;
+    }
+    .lobby-loading,
+    .empty-room-list{
+        border-radius: 18px;
+        border: 1px dashed rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.04);
+        color: rgba(231, 237, 255, 0.76);
+        min-height: 116px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        text-align:center;
+        padding: 20px;
+        line-height: 1.8;
+        box-sizing:border-box;
+    }
+    .lobby-loading.danger{
+        color:#ffc7c7;
+        border-color: rgba(255, 111, 111, 0.28);
+        background: rgba(255, 93, 93, 0.10);
+    }
     .white_content {
         display: none;
         position: absolute;
-        top: 25%;
-        left: 25%;
-        width: 55%;
-        height: 55%;
-        padding: 20px;
-        border: 1px solid orange;
-        background-color: white;
+        top: 16px;
+        left: 16px;
+        width: calc(100% - 32px);
+        max-height: calc(100% - 32px);
+        padding: 18px;
+        box-sizing: border-box;
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(10, 16, 28, 0.97);
+        color: #f2f5ff;
         z-index:1002;
         overflow: auto;
+        box-shadow: 0 22px 46px rgba(0, 0, 0, 0.28);
+    }
+    .center-modal{
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        width: min(720px, calc(100vw - 72px));
+        max-height: min(72vh, 760px);
+        padding: 0;
+        border-radius: 24px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: linear-gradient(180deg, rgba(10, 16, 28, 0.98) 0%, rgba(8, 12, 24, 0.98) 100%);
+        transform: translate(-50%, -50%);
+        overflow: hidden;
+        box-shadow: 0 28px 60px rgba(0, 0, 0, 0.34), 0 0 0 9999px rgba(4, 8, 16, 0.48);
+        backdrop-filter: blur(18px);
+        z-index: 5000;
+    }
+    .modal-shell{
+        display:flex;
+        flex-direction:column;
+        max-height: inherit;
+    }
+    .modal-head{
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:14px;
+        padding: 20px 22px 16px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+    }
+    .modal-title{
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+        color: #ffffff;
+    }
+    .modal-subtitle{
+        margin-top: 6px;
+        color: rgba(221, 228, 255, 0.7);
+        font-size: 13px;
+        line-height: 1.75;
+    }
+    .modal-body{
+        padding: 18px 22px 22px;
+        overflow-y: auto;
+    }
+    .modal-close{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        min-width: 84px;
+        height: 38px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(255,255,255,0.05);
+        color: rgba(233, 239, 255, 0.84);
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 600;
+        transition: transform .16s ease, background .16s ease, border-color .16s ease;
+    }
+    .modal-close:hover{
+        transform: translateY(-1px);
+        background: rgba(255,255,255,0.08);
+        border-color: rgba(255,255,255,0.18);
+    }
+    .selection-list{
+        display:flex;
+        flex-direction:column;
+        gap:14px;
+    }
+    .selection-item{
+        display:flex;
+        align-items:center;
+        gap:14px;
+        padding: 14px;
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%);
+        border: 1px solid rgba(255,255,255,0.07);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+    }
+    .selection-main{
+        flex:1;
+        min-width:0;
+    }
+    .selection-name{
+        margin-bottom: 7px;
+        font-size: 15px;
+        font-weight: 700;
+        color: #fff;
+    }
+    .selection-meta{
+        color: rgba(223, 230, 255, 0.74);
+        font-size: 12px;
+        line-height: 1.7;
+    }
+    .selection-btn{
+        min-width: 88px;
+        height: 40px;
+        border: none;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #ffd36f 0%, #ffb347 100%);
+        color: #11203d;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 12px 24px rgba(255, 179, 71, 0.18);
+    }
+    .selection-actions{
+        display:flex;
+        gap:10px;
+        flex-wrap: wrap;
+        margin-top: 4px;
+    }
+    @media (max-width: 1400px) {
+        #pageShell {
+            transform: scale(0.92);
+            transform-origin: top center;
+            margin-bottom: -70px;
+        }
     }
 </style>
 <body>
+<div id="pageShell">
 <div id="infoDiv">
-    玩家在自己回合时可以使用技能卡，初始每个玩家拥有6个能量和2张技能卡，然后每回合都会额外获得2个能量+1张技能卡。需要注意每个技能卡拥有不同的能量消耗；
-    <br>   <font color="red" style="font-size: medium">注意：先使用技能卡再做过牌、下注、弃牌动作，否则会直接跳到下一个玩家操作</font>
-    <br>
+    <div class="info-tip">Gameplay Guide</div>
+    <h3 class="info-title">玩法说明</h3>
+    <div class="info-body">
+        玩家在自己回合时可以使用技能卡，初始每个玩家拥有 <strong>6 个能量</strong> 和 <strong>2 张技能卡</strong>，之后每回合都会额外获得 <strong>2 个能量 + 1 张技能卡</strong>。
+        <br>
         技能分为主动<input type="image" src="texasImages/zhudong.png" style="width: 24px;height: 36px;">、
         防御<input type="image" src="texasImages/fangyu.png" style="width: 24px;height: 36px;">、
-        陷阱<input type="image" src="texasImages/xianjing.png" style="width: 24px;height: 36px;">
-        3种类别
-    <br>
-        其中防御和陷阱是使用后被动触发，主动技能是使用后立即生效或对其他玩家剩余回合产生影响。
-    <br>
-        如果当前回合被对手通过技能卡限制使用或能量不够使用的卡牌会被渲染为 灰色<input type="image" src="texasImages/xianjing.png" style="width: 24px;height: 36px;filter: grayscale(1); ">暂时不可用
+        陷阱<input type="image" src="texasImages/xianjing.png" style="width: 24px;height: 36px;"> 三类。
+        <br>
+        其中防御和陷阱会在条件满足时被动触发；主动技能则会立即生效，或对其他玩家后续回合产生影响。
+        <br>
+        如果当前回合被限制使用技能，或者能量不足，卡牌会显示为灰色
+        <input type="image" src="texasImages/xianjing.png" style="width: 24px;height: 36px;filter: grayscale(1); ">，
+        表示当前不可使用。
+        <div class="info-highlight">注意：请先使用技能卡，再执行过牌、下注、弃牌，否则会直接轮到下一个玩家。</div>
+    </div>
 </div>
 <div id="canvasDiv" ></div>
+<div id="sceneOverlays">
+    <div id="registDiv" class="scene-panel">
+        <span class="scene-badge">Texas Hold’em · Netty Realtime</span>
+        <h1 class="scene-title">欢迎回到牌桌</h1>
+        <p class="scene-subtitle">登录后即可进入实时对局大厅。支持高实时消息同步、自动重连和断线恢复。</p>
+        <div class="field-group">
+            <label class="field-label" for="name">账号</label>
+            <input id="name" class="scene-input" type="text" placeholder="请输入账号" autocomplete="username"/>
+        </div>
+        <div class="field-group">
+            <label class="field-label" for="password">密码</label>
+            <input id="password" class="scene-input" type="password" placeholder="请输入密码" autocomplete="current-password"/>
+        </div>
+        <div class="panel-actions">
+            <button class="panel-btn secondary" onclick="regist()">注册账号</button>
+            <button class="panel-btn primary" onclick="login()">立即登录</button>
+        </div>
+        <div class="panel-footnote">建议先登录再进入房间；如果网络抖动，页面会自动尝试重连并恢复会话。</div>
+    </div>
+    <div id="roomDiv" class="scene-panel lobby-panel">
+        <div id="lobbyModePage">
+            <div class="lobby-header">
+                <div>
+                    <span class="scene-badge">Select Table</span>
+                    <h2 class="scene-title" style="font-size: 30px; margin-bottom: 8px;">选择你的战场</h2>
+                    <p class="scene-subtitle" style="margin-bottom: 0;">传统模式可快速入桌；技能卡牌版会先选择盲注级别和具体房间。</p>
+                </div>
+                <div id="lobbyUserInfo" class="lobby-user">当前玩家：未登录</div>
+            </div>
+            <div class="room-grid">
+                <button class="room-card classic" onclick="selectRoomMode(0)">
+                    <span class="room-tag">Classic Table</span>
+                    <div class="room-name">传统德州扑克</div>
+                    <div class="room-desc">标准德扑规则，节奏纯粹，适合熟悉基础玩法和正常博弈节奏的玩家。</div>
+                    <div class="room-meta">
+                        <span class="room-pill">6人桌</span>
+                        <span class="room-pill">经典规则</span>
+                        <span class="room-pill">快速匹配</span>
+                    </div>
+                </button>
+                <button class="room-card skill" onclick="selectRoomMode(1)">
+                    <span class="room-tag">Skill Arena</span>
+                    <div class="room-name">技能卡牌版</div>
+                    <div class="room-desc">先选择盲注级别，再进入该级别所有房间列表；未满房间可直接坐下。</div>
+                    <div class="room-meta">
+                        <span class="room-pill">6人桌</span>
+                        <span class="room-pill">盲注分级</span>
+                        <span class="room-pill">房间列表</span>
+                    </div>
+                </button>
+            </div>
+            <div class="panel-footnote">房间人数未满时可直接进入；如果当前级别全部房间已满，可创建新房间坐下等人。</div>
+        </div>
+        <div id="lobbyLevelPage" style="display:none;">
+            <div class="lobby-header">
+                <div>
+                    <span class="scene-badge">Blind Level</span>
+                    <h2 id="lobbyLevelTitle" class="scene-title" style="font-size: 30px; margin-bottom: 8px;">选择盲注级别</h2>
+                    <p class="scene-subtitle" style="margin-bottom: 0;">每个级别会展示当前入座玩家、对局中玩家、房间总数和可加入房间数。</p>
+                </div>
+                <button class="lobby-back" onclick="showLobbyModePage()">返回模式</button>
+            </div>
+            <div id="blindLevelGrid" class="blind-grid"></div>
+            <div class="panel-footnote">点击级别后，会进入该盲注下所有房间列表。</div>
+        </div>
+        <div id="lobbyRoomListPage" style="display:none;">
+            <div class="lobby-header">
+                <div>
+                    <span class="scene-badge">Room List</span>
+                    <h2 id="roomListTitle" class="scene-title" style="font-size: 30px; margin-bottom: 8px;">房间列表</h2>
+                    <p id="roomListSubtitle" class="scene-subtitle" style="margin-bottom: 0;">请选择未满房间进入。</p>
+                </div>
+                <button class="lobby-back" onclick="showLobbyLevelPage(lobbyRoomState.type); requestRoomLevelStats(lobbyRoomState.type);">返回级别</button>
+            </div>
+            <div id="roomListGrid" class="room-list-grid"></div>
+            <div class="panel-footnote">进入房间后会自动占一个座位；等待人数达到最低开局人数后自动开始。</div>
+        </div>
+    </div>
+</div>
 <div id="propsDiv">
-    <div id="trapInfo" style="display: none">当前陷阱数： <span id="trapCount"></span>    ------------------------------------------------------------</div>
-    <div id="selectPlayer" class="white_content">请选择技能释放对象
-        <table id="selectPlayerContent">
-        </table>
-        <a href = "javascript:void(0)" onclick = "document.getElementById('selectPlayer').style.display='none'">点这里关闭</a>
+    <div class="props-header">
+        <div>
+            <h3 class="props-title">玩家状态与技能</h3>
+            <div class="props-subtitle">实时查看桌上玩家能量、技能数量与自己手中的技能卡。</div>
+        </div>
+        <div id="trapInfo" class="trap-badge">当前陷阱 <strong id="trapCount">0</strong></div>
     </div>
-    <div id="selectReverseRound" class="white_content">请选择技能释放对象
-        <table id="selectReverseRoundContent">
-        </table>
-        <a href = "javascript:void(0)" onclick = "document.getElementById('selectReverseRound').style.display='none'">点这里关闭</a>
+    <div id="selectPlayer" class="white_content center-modal">
+        <div class="modal-shell">
+            <div class="modal-head">
+                <div>
+                    <h3 class="modal-title">选择技能释放对象</h3>
+                    <div class="modal-subtitle">请选择这张主动技能要影响的玩家，系统会根据目标立即结算对应效果。</div>
+                </div>
+                <a class="modal-close" href="javascript:void(0)" onclick="document.getElementById('selectPlayer').style.display='none'">关闭</a>
+            </div>
+            <div class="modal-body">
+                <div id="selectPlayerContent"></div>
+            </div>
+        </div>
     </div>
-    <table id="skill_play_table">
-    </table>
+    <div id="selectReverseRound" class="white_content center-modal">
+        <div class="modal-shell">
+            <div class="modal-head">
+                <div>
+                    <h3 class="modal-title">选择技能生效街次</h3>
+                    <div class="modal-subtitle">请选择要回退或改写的公共牌阶段，确认后会立即按技能规则处理。</div>
+                </div>
+                <a class="modal-close" href="javascript:void(0)" onclick="document.getElementById('selectReverseRound').style.display='none'">关闭</a>
+            </div>
+            <div class="modal-body">
+                <div id="selectReverseRoundContent"></div>
+            </div>
+        </div>
+    </div>
+    <div id="skill_play_table"></div>
     <div id="assignChipsInfo" class="white_content">
         <table id="assignChipsContent">
             <tr>
@@ -63,14 +1293,33 @@
         </table>
     </div>
 </div>
-
-<div id="registDiv">
-    <input id="name" type="text" style="border:2px solid groove;position:absolute;left:400px;top:140px;opacity:.5"/>
-    <input id="password" type="password" style="border:2px solid groove;position:absolute;left:400px;top:200px;opacity:.5"/>
+<div id="messages">
+    <div class="messages-shell">
+        <div class="messages-head">
+            <div>
+                <h3 class="messages-title">对局情报</h3>
+                <div class="messages-subtitle">这里会持续展示连接状态、桌面广播、技能触发和下注播报。</div>
+            </div>
+            <div id="messagesStatus" class="messages-status">等待连接</div>
+        </div>
+        <div id="messageStream" class="messages-stream">
+            <div class="message-empty">连接建立后，这里会自动滚动展示本局的每一步关键动态。</div>
+        </div>
+    </div>
 </div>
-<div id="roomDiv"></div>
-<div id="messages"></div>
 <script src="http://cdn.bootcss.com/jquery/3.1.1/jquery.js"></script>
+<script th:inline="javascript">
+    window.TEXAS_WS_CONFIG = {
+        enabled: /*[[${wsEnabled}]]*/ true,
+        host: /*[[${wsHost}]]*/ "",
+        port: /*[[${wsPort}]]*/ 9000,
+        path: /*[[${wsPath}]]*/ "/ws/texas",
+        reconnectEnabled: /*[[${wsReconnectEnabled}]]*/ true,
+        reconnectInitialDelayMillis: /*[[${wsReconnectInitialDelayMillis}]]*/ 1000,
+        reconnectMaxDelayMillis: /*[[${wsReconnectMaxDelayMillis}]]*/ 10000,
+        reconnectMaxAttempts: /*[[${wsReconnectMaxAttempts}]]*/ 0
+    };
+</script>
 <script src="texasJS/view.js"></script>
 <script src="texasJS/message.js"></script>
 <script src="texasJS/controll.js"></script>
@@ -84,6 +1333,7 @@
     $(function () {
         //初始化websocket连接
         wsInit();
+        syncScenePanels();
         $.texasMusic.initMusic();
         var canvas = document.createElement("canvas");
         texasCanvas = canvas;
@@ -119,19 +1369,20 @@
                 drawCards();
                 //玩家下注
                 drawBetChips();
-                //玩牌控制按钮
-                drawControllButtons();
                 //公共牌
                 drawCommonCards();
                 //奖池
                 drawPotChips();
                 //画倒计时条
                 drawTimeBar();
+                //下注滑杆先画，避免它后续擦掉操作按钮
+                DrawSlipBar.init();
+                //玩牌控制按钮最后画，保证按钮和点击区永远在最上层
+                drawControllButtons();
 
                 // 江超：新增卡牌相关begin
                 drawPlayerSkillInfos();
                 // 江超：新增卡牌相关end
-                DrawSlipBar.init();
             }
         };
         // 更新游戏对象的属性
@@ -142,5 +1393,6 @@
         main();
     });
 </script>
+</div>
 </body>
 </html>

@@ -46,19 +46,19 @@ public class RoomTypeList {
 		if (level == 0) {
 			room.setLevel(0);
 			room.setMaxChips(10000);
-			room.setMinChips(100);
+			room.setMinChips(1000);
 			room.setBigBet(100);
 			room.setSmallBet(50);
 		} else if (level == 1) {
 			room.setLevel(1);
-			room.setMaxChips(20000);
-			room.setMinChips(20000);
+			room.setMaxChips(30000);
+			room.setMinChips(10000);
 			room.setBigBet(200);
 			room.setSmallBet(100);
 		} else if (level == 2) {
 			room.setLevel(2);
-			room.setMaxChips(50000);
-			room.setMinChips(50000);
+			room.setMaxChips(100000);
+			room.setMinChips(20000);
 			room.setBigBet(500);
 			room.setSmallBet(250);
 		}
