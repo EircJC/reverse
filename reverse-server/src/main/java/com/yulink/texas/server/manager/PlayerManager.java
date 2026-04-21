@@ -131,12 +131,33 @@ public class PlayerManager {
     public void login(Channel channel, String message) {
         RetMsg rm = new RetMsg();
         rm.setAction("onLogin");
-        PlayerVO player = new PlayerVO();
-        player = JsonUtils.fromJson(message, PlayerVO.class);
-        Player currPlayer = playerService.getPlayerByNameAndPwd(player.getUserName(), Md5.GetMD5Code(player.getUserpwd()));
+        PlayerVO player = JsonUtils.fromJson(message, PlayerVO.class);
+        String userName = safeTrim(player.getUserName());
+        String userpwd = safeTrim(player.getUserpwd());
+        Player currPlayer = null;
+        if (userName.length() == 0) {
+            rm.setState(0);
+            rm.setMessage("请输入用户名");
+        } else if (userpwd.length() == 0) {
+            rm.setState(0);
+            rm.setMessage("请输入密码");
+        } else {
+            Player existPlayer = playerService.getPlayerByUserName(userName);
+            if (existPlayer == null) {
+                rm.setState(0);
+                rm.setMessage("账号不存在");
+                TexasUtil.sendMsgToOne(channel, JsonUtils.toJson(rm, RetMsg.class));
+                return;
+            }
+            currPlayer = playerService.getPlayerByNameAndPwd(userName, Md5.GetMD5Code(userpwd));
+        }
+        if (rm.getState() == 0 && rm.getMessage() != null) {
+            TexasUtil.sendMsgToOne(channel, JsonUtils.toJson(rm, RetMsg.class));
+            return;
+        }
         if (currPlayer == null) {
             rm.setState(0);
-            rm.setMessage("登录失败");
+            rm.setMessage("密码错误");
         } else {
             rm.setState(1);
             BeanUtils.copyProperties(currPlayer, player);

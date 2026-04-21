@@ -215,7 +215,7 @@ function joinRoomByNo(roomNo, type, level) {
     data.roomNo = roomNo;
     data.type = type;
     data.level = level;
-    rememberRoom(type, level);
+    rememberRoom(type, level, roomNo);
     setMessageStatus("正在进入房间 " + roomNo + "...", "warning");
     sendWsPayload(data);
 }
@@ -658,12 +658,16 @@ function onLogin(e, data) {
         syncScenePanels();
         showLobbyModePage();
         if (shouldRejoinRoom()) {
-            enterRoom(texasWsState.room.type, texasWsState.room.level);
+            if (texasWsState.room.roomNo != null && texasWsState.room.roomNo !== "") {
+                joinRoomByNo(texasWsState.room.roomNo, texasWsState.room.type, texasWsState.room.level);
+            } else {
+                enterRoom(texasWsState.room.type, texasWsState.room.level);
+            }
             markRoomRejoinCompleted();
         }
     } else {
         clearCredentials();
-        setGameMessage("登录失败", "danger");
+        setGameMessage(data.message || "登录失败", "danger");
     }
 }
 // 注册结果
@@ -735,6 +739,7 @@ function onEnterRoom(e, data) {
         clearCommonCards();
         clearSkillDiv();
         roomInfo = JSON.parse(data.message);
+        rememberRoom(roomInfo.type, roomInfo.level, roomInfo.roomNo);
         // 等待玩家列表
         var waitPlayers = roomInfo.waitPlayers;
         // 开局重置ingame状态
@@ -774,11 +779,13 @@ function onEnterRoom(e, data) {
         commonCards = roomInfo.communityCards;
         commonCardsDrawed = false;
         pot = roomInfo.betAmount;
+        setMessageStatus("房间编号：" + roomInfo.roomNo, "accent");
         drawRoomInfos();
         //如果在游戏结束阶段
         winnerList = roomInfo.winPlayersMap;
         drawWinners();
     } else {
+        setMessageStatus("进入房间失败：" + data.message, "danger");
         setGameMessage("进入房间失败：" + data.message, "danger");
     }
 }
@@ -791,6 +798,7 @@ function onOutRoom() {
     syncScenePanels();
     showLobbyModePage();
     clearRoomMemory();
+    setMessageStatus("已返回大厅", "success");
     $.texasMusic.playBackMu();
 }
 // 其他玩家加入房间

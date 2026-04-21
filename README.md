@@ -10,11 +10,11 @@
 
 提供默认2个账号：jiangchao/123456；jc/123456，分别打开2个浏览器登录试试吧  
 http://localhost:8585/texasPage/texasIndex
-![C21cbF.png](https://i.imgs.ovh/2025/12/12/C21cbF.png)  
+![C21cbF.png](https://i.imgs.ovh/2026/04/21/Z1va3g.png)  
 
-这是第二个账号的界面
+主动技能使用
 
-![C21Z4X.png](https://i.imgs.ovh/2025/12/12/C21Z4X.png)
+![C21Z4X.png](https://i.imgs.ovh/2026/04/21/Z1vcU0.png)
 
 ### 数据库init脚本
 [texas_init.sql](texas_init.sql)

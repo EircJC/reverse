@@ -69,8 +69,8 @@ spring:
   mail:
     host: smtp.yeah.net
     port: 465
-    username: 123@yeah.net
-    password: abcdefg
+    username: # 邮箱
+    password: # 授权码
     protocol: smtp
     properties:
       mail:

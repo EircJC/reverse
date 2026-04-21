@@ -14,6 +14,12 @@ var texasWsState = {
 var wsConfig = buildWsConfig(window.TEXAS_WS_CONFIG || {});
 var wsip = buildWsUrl();
 var wsReconnectEnabled = wsConfig.enabled && wsConfig.reconnectEnabled;
+var texasSessionKeys = {
+    credentials: "texas_ws_credentials",
+    room: "texas_ws_room"
+};
+
+loadSessionState();
 
 function getMessageStream() {
     return document.getElementById("messageStream");
@@ -319,23 +325,28 @@ function rememberCredentials(userName, userpwd) {
         userName: userName,
         userpwd: userpwd
     };
+    saveSessionJson(texasSessionKeys.credentials, texasWsState.credentials);
 }
 
 function clearCredentials() {
     texasWsState.credentials = null;
     texasWsState.rejoinAfterLogin = false;
+    removeSessionItem(texasSessionKeys.credentials);
 }
 
-function rememberRoom(type, level) {
+function rememberRoom(type, level, roomNo) {
     texasWsState.room = {
         type: type,
-        level: level
+        level: level,
+        roomNo: roomNo || null
     };
+    saveSessionJson(texasSessionKeys.room, texasWsState.room);
 }
 
 function clearRoomMemory() {
     texasWsState.room = null;
     texasWsState.rejoinAfterLogin = false;
+    removeSessionItem(texasSessionKeys.room);
 }
 
 function shouldRejoinRoom() {
@@ -352,6 +363,46 @@ function buildLoginPayload(userName, userpwd) {
         userName: userName,
         userpwd: userpwd
     };
+}
+
+function loadSessionState() {
+    texasWsState.credentials = readSessionJson(texasSessionKeys.credentials);
+    texasWsState.room = readSessionJson(texasSessionKeys.room);
+}
+
+function readSessionJson(key) {
+    try {
+        if (window.sessionStorage == null) {
+            return null;
+        }
+        var rawValue = window.sessionStorage.getItem(key);
+        if (rawValue == null || rawValue === "") {
+            return null;
+        }
+        return JSON.parse(rawValue);
+    } catch (e) {
+        return null;
+    }
+}
+
+function saveSessionJson(key, value) {
+    try {
+        if (window.sessionStorage == null) {
+            return;
+        }
+        window.sessionStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+    }
+}
+
+function removeSessionItem(key) {
+    try {
+        if (window.sessionStorage == null) {
+            return;
+        }
+        window.sessionStorage.removeItem(key);
+    } catch (e) {
+    }
 }
 
 function sendWsPayload(data) {

@@ -19,3 +19,8 @@ mybatis:
 netty:
   websocket:
     enabled: false
+
+texas:
+  register:
+    mail:
+      enabled: false

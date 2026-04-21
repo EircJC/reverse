@@ -9,35 +9,396 @@ var trapRemindSwitch = true;
 // 最大带入筹码量
 var maxChips;
 var isExitRoom = false;
+var lobbyRoomState = {
+    type: null,
+    level: null,
+    levelStats: null,
+    roomList: null
+};
+var registerCodeCooldownTimer = null;
+var registerCodeCooldownSeconds = 0;
+
+function syncScenePanels() {
+    if (gamebackGroundType == "login") {
+        $("#registDiv").show();
+        $("#roomDiv").hide();
+        $("#infoDiv").show();
+        $("#propsDiv").hide();
+        return;
+    }
+    if (gamebackGroundType == "lobby") {
+        $("#registDiv").hide();
+        $("#roomDiv").show();
+        $("#infoDiv").show();
+        $("#propsDiv").hide();
+        updateLobbyUserInfo();
+        return;
+    }
+    $("#registDiv").hide();
+    $("#roomDiv").hide();
+    $("#infoDiv").hide();
+    $("#propsDiv").show();
+}
+
+function updateLobbyUserInfo() {
+    if ($("#lobbyUserInfo").length === 0) {
+        return;
+    }
+    if (myInfo != null && myInfo.userName != null && myInfo.userName !== "") {
+        $("#lobbyUserInfo").html("当前玩家：<strong>" + myInfo.userName + "</strong>");
+        $("#lobbyLogoutBtn, #roomLogoutBtn").removeClass("hidden");
+    } else {
+        $("#lobbyUserInfo").text("当前玩家：未登录");
+        $("#lobbyLogoutBtn, #roomLogoutBtn").addClass("hidden");
+    }
+}
+
+function openRegisterModal() {
+    $("#registerModal").appendTo("body").show();
+    clearRegisterFeedback();
+    updateRegisterCodeButton();
+}
+
+function closeRegisterModal() {
+    clearRegisterFeedback();
+    $("#registerModal").hide();
+}
+
+function clearRegisterForm() {
+    $("#registerName").val("");
+    $("#registerEmail").val("");
+    $("#registerCode").val("");
+    $("#registerPassword").val("");
+    $("#registerConfirmPassword").val("");
+    clearRegisterFeedback();
+}
+
+function showRegisterFeedback(message, tone) {
+    var feedback = $("#registerFeedback");
+    if (feedback.length === 0) {
+        return;
+    }
+    var finalTone = tone || "info";
+    feedback.removeClass("success warning danger").addClass(finalTone).html(escapeMessageHtml(message)).show();
+}
+
+function clearRegisterFeedback() {
+    var feedback = $("#registerFeedback");
+    if (feedback.length === 0) {
+        return;
+    }
+    feedback.removeClass("success warning danger").text("").hide();
+}
+
+function updateRegisterCodeButton() {
+    var button = $("#sendRegisterCodeBtn");
+    if (button.length === 0) {
+        return;
+    }
+    if (registerCodeCooldownSeconds > 0) {
+        button.prop("disabled", true).addClass("disabled").text(registerCodeCooldownSeconds + "s 后重发");
+    } else {
+        button.prop("disabled", false).removeClass("disabled").text("发送验证码");
+    }
+}
+
+function startRegisterCodeCooldown(seconds) {
+    registerCodeCooldownSeconds = seconds;
+    updateRegisterCodeButton();
+    if (registerCodeCooldownTimer != null) {
+        window.clearInterval(registerCodeCooldownTimer);
+    }
+    registerCodeCooldownTimer = window.setInterval(function () {
+        registerCodeCooldownSeconds--;
+        if (registerCodeCooldownSeconds <= 0) {
+            registerCodeCooldownSeconds = 0;
+            window.clearInterval(registerCodeCooldownTimer);
+            registerCodeCooldownTimer = null;
+        }
+        updateRegisterCodeButton();
+    }, 1000);
+}
+
+function showLobbyModePage() {
+    $("#lobbyModePage").show();
+    $("#lobbyLevelPage").hide();
+    $("#lobbyRoomListPage").hide();
+    lobbyRoomState.type = null;
+    lobbyRoomState.level = null;
+}
+
+function showLobbyLevelPage(type) {
+    $("#lobbyModePage").hide();
+    $("#lobbyLevelPage").show();
+    $("#lobbyRoomListPage").hide();
+    $("#lobbyLevelTitle").text(getRoomTypeName(type) + " · 选择盲注级别");
+    $("#blindLevelGrid").html("<div class='lobby-loading'>正在读取当前盲注级别的房间与玩家数据...</div>");
+}
+
+function showLobbyRoomListPage(type, level) {
+    $("#lobbyModePage").hide();
+    $("#lobbyLevelPage").hide();
+    $("#lobbyRoomListPage").show();
+    $("#roomListTitle").text(getBlindLevelName(level) + " · 房间列表");
+    $("#roomListSubtitle").text("盲注 " + getBlindText(level) + "，请选择未满房间入座；如果没有空位，可以创建新房间等待其他玩家。");
+    $("#roomListGrid").html("<div class='lobby-loading'>正在读取当前盲注下所有房间...</div>");
+}
+
+function getRoomTypeName(type) {
+    if (type == 1) {
+        return "技能卡牌版";
+    }
+    if (type == 2) {
+        return "自定义卡组版";
+    }
+    return "传统德州扑克";
+}
+
+function getBlindLevelName(level) {
+    if (level == 1) {
+        return "进阶场";
+    }
+    if (level == 2) {
+        return "高手场";
+    }
+    return "新手场";
+}
+
+function getBlindText(levelInfoOrLevel) {
+    if (typeof levelInfoOrLevel === "object" && levelInfoOrLevel != null) {
+        return levelInfoOrLevel.smallBet + " / " + levelInfoOrLevel.bigBet;
+    }
+    if (levelInfoOrLevel == 1) {
+        return "100 / 200";
+    }
+    if (levelInfoOrLevel == 2) {
+        return "250 / 500";
+    }
+    return "50 / 100";
+}
+
+function selectRoomMode(type) {
+    if (type == 0) {
+        enterRoom(0, 0);
+        return;
+    }
+    lobbyRoomState.type = type;
+    showLobbyLevelPage(type);
+    requestRoomLevelStats(type);
+}
+
+function requestRoomLevelStats(type) {
+    var data = {};
+    data.action = mapping.getRoomLevelStats;
+    data.type = type;
+    sendWsPayload(data);
+}
+
+function selectBlindLevel(type, level) {
+    lobbyRoomState.type = type;
+    lobbyRoomState.level = level;
+    showLobbyRoomListPage(type, level);
+    requestRoomList(type, level);
+}
+
+function requestRoomList(type, level) {
+    var data = {};
+    data.action = mapping.getRoomList;
+    data.type = type;
+    data.level = level;
+    sendWsPayload(data);
+}
+
+function joinRoomByNo(roomNo, type, level) {
+    var data = {};
+    data.action = mapping.joinRoomByNo;
+    data.roomNo = roomNo;
+    data.type = type;
+    data.level = level;
+    rememberRoom(type, level, roomNo);
+    setMessageStatus("正在进入房间 " + roomNo + "...", "warning");
+    sendWsPayload(data);
+}
+
+function createLevelRoom(type, level) {
+    var data = {};
+    data.action = mapping.createRoom;
+    data.type = type;
+    data.level = level;
+    rememberRoom(type, level);
+    setMessageStatus("正在创建新房间...", "warning");
+    sendWsPayload(data);
+}
+
+function renderBlindLevels(levels, type) {
+    if (levels == null || levels.length === 0) {
+        $("#blindLevelGrid").html("<div class='lobby-loading'>当前模式还没有可用盲注配置。</div>");
+        return;
+    }
+    var html = "";
+    for (var i in levels) {
+        var item = levels[i];
+        html += "<button class='blind-card level-" + item.level + "' onclick='selectBlindLevel(" + type + "," + item.level + ")'>";
+        html += "<span class='room-tag'>" + getBlindLevelName(item.level) + "</span>";
+        html += "<div class='room-name'>盲注 " + escapeMessageHtml(getBlindText(item)) + "</div>";
+        html += "<div class='room-desc'>带入 " + escapeMessageHtml(item.minChips) + " - " + escapeMessageHtml(item.maxChips) + "，最多 " + escapeMessageHtml(item.maxPlayers) + " 人同桌。</div>";
+        html += "<div class='lobby-stat-grid'>";
+        html += "<div class='lobby-stat'><strong>" + escapeMessageHtml(item.playerCount) + "</strong><span>入座玩家</span></div>";
+        html += "<div class='lobby-stat'><strong>" + escapeMessageHtml(item.playingPlayerCount) + "</strong><span>对局中</span></div>";
+        html += "<div class='lobby-stat'><strong>" + escapeMessageHtml(item.roomCount) + "</strong><span>房间数</span></div>";
+        html += "<div class='lobby-stat'><strong>" + escapeMessageHtml(item.availableRoomCount) + "</strong><span>可加入</span></div>";
+        html += "</div>";
+        html += "</button>";
+    }
+    $("#blindLevelGrid").html(html);
+}
+
+function renderRoomList(roomListInfo) {
+    var rooms = roomListInfo.rooms || [];
+    var html = "";
+    $("#roomListTitle").text(getBlindLevelName(roomListInfo.level) + " · 房间列表");
+    $("#roomListSubtitle").text("盲注 " + roomListInfo.smallBet + " / " + roomListInfo.bigBet + "，当前 " + roomListInfo.roomCount + " 个房间，" + roomListInfo.availableRoomCount + " 个可加入。");
+    if (rooms.length === 0) {
+        html += "<div class='empty-room-list'>当前盲注还没有房间，创建一个新房间后会自动坐下等人。</div>";
+    } else {
+        for (var i in rooms) {
+            var room = rooms[i];
+            var statusClass = room.available ? "open" : "full";
+            var statusText = room.available ? "可加入" : "已满";
+            var gameText = room.gamestate == 1 ? "对局中" : (room.gamestate == 2 ? "结算中" : "等待中");
+            html += "<div class='room-list-card " + statusClass + "'>";
+            html += "<div class='room-list-main'>";
+            html += "<div class='room-list-no'>" + escapeMessageHtml(room.roomNo) + "</div>";
+            html += "<div class='room-list-meta'>";
+            html += "<span>" + gameText + "</span>";
+            html += "<span>玩家 " + escapeMessageHtml(room.playerCount) + " / " + escapeMessageHtml(room.maxPlayers) + "</span>";
+            html += "<span>等待 " + escapeMessageHtml(room.waitPlayerCount) + "</span>";
+            html += "<span>对局 " + escapeMessageHtml(room.playingPlayerCount) + "</span>";
+            html += "</div>";
+            html += "</div>";
+            if (room.available) {
+                html += "<button class='room-join-btn' onclick=\"joinRoomByNo('" + escapeMessageHtml(room.roomNo) + "'," + room.type + "," + room.level + ")\">进入坐下</button>";
+            } else {
+                html += "<button class='room-join-btn disabled' disabled>" + statusText + "</button>";
+            }
+            html += "</div>";
+        }
+    }
+    html += "<button class='create-room-btn' onclick='createLevelRoom(" + roomListInfo.type + "," + roomListInfo.level + ")'>创建新房间并坐下</button>";
+    $("#roomListGrid").html(html);
+}
+
+$(function () {
+    syncScenePanels();
+    $("#name, #password").on("keydown", function (event) {
+        if (event.keyCode === 13) {
+            login();
+        }
+    });
+    $("#registerName, #registerEmail, #registerCode, #registerPassword, #registerConfirmPassword").on("keydown", function (event) {
+        if (event.keyCode === 13) {
+            regist();
+        }
+    });
+    updateLobbyUserInfo();
+});
 
 // 注册，传入账号密码
 function regist() {
+    var userName = $.trim($("#registerName").val());
+    var email = $.trim($("#registerEmail").val());
+    var emailCode = $.trim($("#registerCode").val());
+    var password = $("#registerPassword").val();
+    var confirmPassword = $("#registerConfirmPassword").val();
+    if (userName === "") {
+        showRegisterFeedback("请先输入用户名", "warning");
+        $("#registerName").focus();
+        return;
+    }
+    if (email === "") {
+        showRegisterFeedback("请先输入邮箱地址", "warning");
+        $("#registerEmail").focus();
+        return;
+    }
+    if (emailCode === "") {
+        showRegisterFeedback("请先输入邮箱验证码", "warning");
+        $("#registerCode").focus();
+        return;
+    }
+    if (password === "") {
+        showRegisterFeedback("请先输入密码", "warning");
+        $("#registerPassword").focus();
+        return;
+    }
+    if (confirmPassword === "") {
+        showRegisterFeedback("请再次输入密码", "warning");
+        $("#registerConfirmPassword").focus();
+        return;
+    }
+    if (password !== confirmPassword) {
+        showRegisterFeedback("两次输入的密码不一致，请重新确认", "danger");
+        $("#registerConfirmPassword").focus();
+        return;
+    }
     var data = {};
     data.action = mapping.regist;
-    data.userName = $("#name").val();
-    data.userpwd = $("#password").val();
-    websocket.send(JSON.stringify(data));
+    data.userName = userName;
+    data.email = email;
+    data.emailCode = emailCode;
+    data.userpwd = password;
+    data.confirmPwd = confirmPassword;
+    showRegisterFeedback("正在提交注册请求，请稍候...", "warning");
+    sendWsPayload(data);
+}
+
+function sendRegisterCode() {
+    var userName = $.trim($("#registerName").val());
+    var email = $.trim($("#registerEmail").val());
+    if (userName === "") {
+        showRegisterFeedback("发送验证码前请先输入用户名", "warning");
+        $("#registerName").focus();
+        return;
+    }
+    if (email === "") {
+        showRegisterFeedback("发送验证码前请先输入邮箱地址", "warning");
+        $("#registerEmail").focus();
+        return;
+    }
+    var data = {};
+    data.action = mapping.sendRegisterCode;
+    data.userName = userName;
+    data.email = email;
+    showRegisterFeedback("正在发送验证码，请稍候...", "warning");
+    sendWsPayload(data);
 }
 // 登陆，传入账号密码
 function login() {
+    var userName = $("#name").val();
+    var userpwd = $("#password").val();
+    rememberCredentials(userName, userpwd);
+    sendWsPayload(buildLoginPayload(userName, userpwd));
+}
+
+function logout() {
     var data = {};
-    data.action = mapping.login;
-    data.userName = $("#name").val();
-    data.userpwd = $("#password").val();
-    websocket.send(JSON.stringify(data));
+    data.action = mapping.logout;
+    sendWsPayload(data);
 }
 // 加入房间，传入房间类型
 function enterRoom(type,level) {
     $("#infoDiv").hide();
     var data = {};
     data.action = mapping.enterRoom;
-    data.level = $("#type option:selected").val();
+    data.type = 0;
+    data.level = 0;
     if (level != null && type != null) {
         data.level = level;
         data.type = type;
     }
-    websocket.send(JSON.stringify(data));
+    rememberRoom(data.type, data.level);
+    sendWsPayload(data);
     gamebackGroundType = "room";
+    syncScenePanels();
     // 根据房间级别，更换桌面背景
     startIndexBackground = data.type;
     backGroundDrawed = false;
@@ -46,20 +407,21 @@ function enterRoom(type,level) {
 function exitRoom() {
     var data = {};
     data.action = mapping.exitRoom;
-    websocket.send(JSON.stringify(data));
+    clearRoomMemory();
+    sendWsPayload(data);
     $("#assignChipsInfo").hide();
 }
 // 站起
 function standUp() {
     var data = {};
     data.action = mapping.standUp;
-    websocket.send(JSON.stringify(data));
+    sendWsPayload(data);
 }
 // 坐下
 function sitDown() {
     var data = {};
     data.action = mapping.sitDown;
-    websocket.send(JSON.stringify(data));
+    sendWsPayload(data);
     return false;
 }
 // 加注
@@ -67,14 +429,14 @@ function raise() {
     var data = {};
     data.action = mapping.betChips;
     data.inChips = DrawSlipBar.betChips;
-    websocket.send(JSON.stringify(data));
+    sendWsPayload(data);
 }
 // 全下
 function allIn() {
     var data = {};
     data.action = mapping.betChips;
     data.inChips = myInfo.bodyChips;
-    websocket.send(JSON.stringify(data));
+    sendWsPayload(data);
 }
 // 过牌
 function check() {
@@ -84,7 +446,7 @@ function check() {
     }
     var data = {};
     data.action = mapping.check;
-    websocket.send(JSON.stringify(data));
+    sendWsPayload(data);
 }
 // 跟注
 function call() {
@@ -102,19 +464,19 @@ function call() {
     if (myInfo.bodyChips < roundMaxBet) {
         data.inChips = myInfo.bodyChips;
     }
-    websocket.send(JSON.stringify(data));
+    sendWsPayload(data);
 }
 // 弃牌
 function fold() {
     var data = {};
     data.action = mapping.fold;
-    websocket.send(JSON.stringify(data));
+    sendWsPayload(data);
 }
 //获取排行榜
 function getRankList() {
     var data = {};
     data.action = mapping.getRankList;
-    websocket.send(JSON.stringify(data));
+    sendWsPayload(data);
 }
 // 使用技能
 function useSkill(skillDictionaryNo, destPlayerId, tokenId, reverseRound) {
@@ -125,7 +487,7 @@ function useSkill(skillDictionaryNo, destPlayerId, tokenId, reverseRound) {
     data.skillDictionaryNo = skillDictionaryNo;
     data.tokenId = tokenId;
     data.reverseRound = reverseRound; // 使用倒转乾坤时次字段生效，表示需要重发哪条街的公共牌
-    websocket.send(JSON.stringify(data));
+    sendWsPayload(data);
 }
 // 使用技能后回调函数
 function onUseSkill(e, data) {
@@ -209,12 +571,12 @@ function onUseSkill(e, data) {
     }
     if (data.state == 1) {
         skillConstrains = (skillConstrains != null && skillConstrains != '') ? skillConstrains : "无";
-        $("#messages").append("<br>"+skillMessage+";  技能描述: "+skillDescription+";  限制条件: ("+ skillConstrains +")");
+        appendGameMessage(skillMessage+"；技能描述："+skillDescription+"；限制条件：("+ skillConstrains +")", "accent", true);
         if(skillDefenseCard != null && skillDefenseCard != undefined) {
-            $("#messages").append("<br><font color='blue'>(防御)</font> 被 "+destPlayerName+" 的 <font color='blue'>"+skillDefenseCard.skillNameZh+"</font> 抵挡; 技能描述: "+skillDefenseCard.description+";  限制条件: ("+ skillDefenseCard.constrains +")");
+            appendGameMessage("<font color='blue'>(防御)</font> 被 "+destPlayerName+" 的 <font color='blue'>"+skillDefenseCard.skillNameZh+"</font> 抵挡；技能描述："+skillDefenseCard.description+"；限制条件：("+ skillDefenseCard.constrains +")", "accent", true);
         }
     } else {
-        $("#messages").append("<br>"+data.message);
+        appendGameMessage(data.message, "danger");
     }
 
     setTimeout("clearSkillMessage()", 3000);
@@ -253,11 +615,11 @@ function onTrapSkill(e, data) {
     if (data.state == 1) {
         if(skillTrapCard != null && skillTrapCard != undefined) {
             if(trapRemindSwitch) {
-                $("#messages").append("<br><font color='green'>(陷阱)</font> 玩家 <font color='#ff7f50'>"+srcPlayerName+"</font> 触发 "+skillTrapCard.usedPlayer.userName+" 的 <font color='green'>"+skillTrapCard.skillNameZh+"</font>  技能描述: "+skillTrapCard.description+";  限制条件: ("+ skillTrapCard.constrains +")");
+                appendGameMessage("<font color='green'>(陷阱)</font> 玩家 <font color='#ff7f50'>"+srcPlayerName+"</font> 触发 "+skillTrapCard.usedPlayer.userName+" 的 <font color='green'>"+skillTrapCard.skillNameZh+"</font>；技能描述："+skillTrapCard.description+"；限制条件：("+ skillTrapCard.constrains +")", "warning", true);
             }
         }
     } else {
-        $("#messages").append("<br>"+data.message);
+        appendGameMessage(data.message, "danger");
     }
     trapRemindSwitch = true;
 }
@@ -272,11 +634,11 @@ function onAvoidTrap(e, data) {
 
         if(skillDefenseCard != null && skillDefenseCard != undefined && skillTrapCard != null && skillTrapCard != undefined) {
             trapRemindSwitch = false;
-            $("#messages").append("<br><font color='blue'>(防御)</font> "+srcPlayerName+" 的 <font color='blue'>"+skillDefenseCard.skillNameZh+"</font> 抵挡; (技能描述: "+skillDefenseCard.description+";  限制条件: "+ skillDefenseCard.constrains +")");
-            $("#messages").append("<br>    躲过玩家 "+skillTrapCard.usedPlayer.userName+" 的陷阱 <font color='green'>"+skillTrapCard.skillNameZh+"</font> ; (技能描述: "+skillTrapCard.description+";  限制条件: "+ skillTrapCard.constrains +")");
+            appendGameMessage("<font color='blue'>(防御)</font> "+srcPlayerName+" 的 <font color='blue'>"+skillDefenseCard.skillNameZh+"</font> 抵挡；技能描述："+skillDefenseCard.description+"；限制条件："+ skillDefenseCard.constrains, "accent", true);
+            appendGameMessage("躲过玩家 "+skillTrapCard.usedPlayer.userName+" 的陷阱 <font color='green'>"+skillTrapCard.skillNameZh+"</font>；技能描述："+skillTrapCard.description+"；限制条件："+ skillTrapCard.constrains, "warning", true);
         }
     } else {
-        $("#messages").append("<br>"+data.message);
+        appendGameMessage(data.message, "danger");
     }
 }
 
@@ -293,31 +655,91 @@ function onLogin(e, data) {
         myInfo = JSON.parse(data.message);
         // myInfo = data.message;
         gamebackGroundType = "lobby";
-        $("#registDiv").hide();
+        syncScenePanels();
+        showLobbyModePage();
+        if (shouldRejoinRoom()) {
+            if (texasWsState.room.roomNo != null && texasWsState.room.roomNo !== "") {
+                joinRoomByNo(texasWsState.room.roomNo, texasWsState.room.type, texasWsState.room.level);
+            } else {
+                enterRoom(texasWsState.room.type, texasWsState.room.level);
+            }
+            markRoomRejoinCompleted();
+        }
     } else {
-        document.getElementById('messages').innerHTML = 'login fail';
+        clearCredentials();
+        setGameMessage(data.message || "登录失败", "danger");
     }
 }
 // 注册结果
 function onRegister(e, data) {
     if (data.state == 1) {
-        // 注册成功后自动登陆
+        $("#name").val($("#registerName").val());
+        $("#password").val($("#registerPassword").val());
+        showRegisterFeedback("注册成功，正在自动登录...", "success");
+        closeRegisterModal();
+        setGameMessage("注册成功，正在自动登录", "success");
         login();
-        $("#name").val("");
-        $("#password").val("");
-        document.getElementById('messages').innerHTML = 'register success';
+        clearRegisterForm();
     } else {
-        document.getElementById('messages').innerHTML = 'register fail';
+        showRegisterFeedback("注册失败：" + data.message, "danger");
+    }
+}
+function onSendRegisterCode(e, data) {
+    if (data.state == 1) {
+        startRegisterCodeCooldown(60);
+        showRegisterFeedback("验证码发送成功，请留意邮箱：" + $("#registerEmail").val(), "success");
+    } else {
+        showRegisterFeedback(data.message, "danger");
+    }
+}
+function onLogout(e, data) {
+    myInfo = {};
+    roomInfo = {};
+    nextRoundSkillAction = "";
+    removeAllPlayers();
+    clearCredentials();
+    clearRoomMemory();
+    closeRegisterModal();
+    clearRegisterForm();
+    gamebackGroundType = "login";
+    loginBackGroundLoaded = false;
+    lobbyBackGroundLoaded = false;
+    backGroundDrawed = false;
+    commonSkillDrawed = false;
+    clearMessageStream();
+    syncScenePanels();
+    updateLobbyUserInfo();
+    setGameMessage(data.message || "已退出登录", "success");
+    $.texasMusic.playBackMu();
+}
+function onRoomLevelStats(e, data) {
+    if (data.state == 1) {
+        var levelStats = JSON.parse(data.message);
+        lobbyRoomState.levelStats = levelStats;
+        renderBlindLevels(levelStats.levels, levelStats.type);
+    } else {
+        $("#blindLevelGrid").html("<div class='lobby-loading danger'>" + escapeMessageHtml(data.message) + "</div>");
+    }
+}
+function onRoomList(e, data) {
+    if (data.state == 1) {
+        var roomListInfo = JSON.parse(data.message);
+        lobbyRoomState.roomList = roomListInfo;
+        renderRoomList(roomListInfo);
+    } else {
+        $("#roomListGrid").html("<div class='lobby-loading danger'>" + escapeMessageHtml(data.message) + "</div>");
     }
 }
 function onEnterRoom(e, data) {
     if (data.state == 1) {
         $.texasMusic.stopBackMu();
         gamebackGroundType = "room";
+        syncScenePanels();
         clearPotChips();
         clearCommonCards();
         clearSkillDiv();
         roomInfo = JSON.parse(data.message);
+        rememberRoom(roomInfo.type, roomInfo.level, roomInfo.roomNo);
         // 等待玩家列表
         var waitPlayers = roomInfo.waitPlayers;
         // 开局重置ingame状态
@@ -357,12 +779,14 @@ function onEnterRoom(e, data) {
         commonCards = roomInfo.communityCards;
         commonCardsDrawed = false;
         pot = roomInfo.betAmount;
+        setMessageStatus("房间编号：" + roomInfo.roomNo, "accent");
         drawRoomInfos();
         //如果在游戏结束阶段
         winnerList = roomInfo.winPlayersMap;
         drawWinners();
     } else {
-        document.getElementById('messages').innerHTML = '进入房间失败';
+        setMessageStatus("进入房间失败：" + data.message, "danger");
+        setGameMessage("进入房间失败：" + data.message, "danger");
     }
 }
 // 本人退出房间
@@ -371,6 +795,10 @@ function onOutRoom() {
     lobbyBackGroundLoaded = false;
     LobbyButtonsDrawed = false;
     removeAllPlayers();
+    syncScenePanels();
+    showLobbyModePage();
+    clearRoomMemory();
+    setMessageStatus("已返回大厅", "success");
     $.texasMusic.playBackMu();
 }
 // 其他玩家加入房间
@@ -422,8 +850,8 @@ var roundMaxBet = 0;
 function onGameStart(e, data) {
     // 清空操作记录列表
     $("#infoDiv").hide();
-    $("#trapInfo").show();
-    $("#messages").html("新一局游戏开始");
+    $("#trapInfo").css("display", "inline-flex");
+    setGameMessage("新一局游戏开始", "success");
     roomInfo.dealerDrawed = false;
     isExitRoom = false;
     roundMaxBet = 0;
@@ -439,6 +867,10 @@ function onGameStart(e, data) {
     if (data.state == 1) {
         $.texasMusic.playSendCardMu();
         roomInfo = JSON.parse(data.message);
+        appendGameMessage("房间号：" + roomInfo.roomNo, "accent");
+        if (roomInfo.handPokers != null) {
+            console.log("onGameStart handPokers:", roomInfo.handPokers);
+        }
         // 开局重置ingame状态
         for (var i in players) {
             players[i].ingame = false;
@@ -454,8 +886,24 @@ function onGameStart(e, data) {
             p.infoDrawed = false;
             p.bodyChips = player.bodyChips;
         }
-        // 发手牌
-        myInfo.cards = roomInfo.handPokers;
+        // 发手牌，优先回填到 players 中的本人对象，避免 myInfo 引用漂移导致不渲染
+        var currentPlayer = getPlayerBySeatNum(myInfo.seatNum);
+        if (currentPlayer == null && myInfo.id != null) {
+            for (var j in players) {
+                if (players[j].id == myInfo.id) {
+                    currentPlayer = players[j];
+                    break;
+                }
+            }
+        }
+        if (currentPlayer != null) {
+            currentPlayer.cards = roomInfo.handPokers;
+            currentPlayer.cardDrawed = false;
+            currentPlayer.infoDrawed = false;
+            myInfo = currentPlayer;
+        } else {
+            myInfo.cards = roomInfo.handPokers;
+        }
         drawRoomInfos();
     }
     /**
@@ -479,7 +927,7 @@ function drawRoomInfos() {
             roundMaxBet = p.betChips;
         }
         if(p.betChips > 0) {
-            $("#messages").append("<br>玩家："+p.userName+" 下盲注："+p.betChips);
+            appendGameMessage("玩家：" + p.userName + " 下盲注：" + p.betChips, "info");
         }
     }
     // 根据新的下注信息，重置控制按钮，拖动条
@@ -513,7 +961,7 @@ function onPlayerBet(e, data) {
         cancelTimeBar();
         // 根据新的下注信息，重置控制按钮，拖动条
         resetSlipBarAndButtons();
-        $("#messages").append("<br>玩家："+player.userName+" 下注/跟注 ："+p.betChips);
+        appendGameMessage("玩家：" + player.userName + " 下注/跟注：" + p.betChips, "info");
     }
 }
 // 根据新的下注信息，重置控制按钮，拖动条
@@ -549,7 +997,8 @@ function onPlayerCheck(e, data) {
         $.texasMusic.playCheckMu();
         var player = JSON.parse(data.message);
         cancelTimeBar();
-        $("#messages").append("<br>玩家："+player.userName+" 过牌");
+        ControllButtonsDrawed = false;
+        appendGameMessage("玩家：" + player.userName + " 过牌", "info");
     }
 }
 // 有玩家弃牌
@@ -562,7 +1011,8 @@ function onPlayerFold(e, data) {
         p.ingame = false;
         clearCards(p);
         cancelTimeBar();
-        $("#messages").append("<br>玩家："+player.userName+" 弃牌");
+        ControllButtonsDrawed = false;
+        appendGameMessage("玩家：" + player.userName + " 弃牌", "warning");
     }
 }
 // 游戏结束
@@ -606,12 +1056,13 @@ function onGameEnd(e, data) {
 function onPlayerTurn(e, data) {
     if (data.state == 1) {
         var seatNum = JSON.parse(data.message);
+        roomInfo.nextturn = seatNum;
         var player = getPlayerBySeatNum(seatNum);
+        resetSlipBarAndButtons();
         createTimeBar(player);
-        $("#messages").append("<br>---------------------------------------------------------");
-        $("#messages").append("<br>轮到玩家："+player.userName+" 操作");
+        appendGameMessage("轮到玩家：" + (player == null ? seatNum : player.userName) + " 操作", "accent");
 
-        if (player.id == myInfo.id) {
+        if (player != null && player.id == myInfo.id) {
             // var nextRoundSkillAction = roomInfo.nextRoundSkillAction;
             if(nextRoundSkillAction == "allin") {
                 allIn();
@@ -649,7 +1100,7 @@ function doAssignChips() {
     var data = {};
     data.action = mapping.assignChips;
     data.assignChipsNum = assignChipsNum;
-    websocket.send(JSON.stringify(data));
+    sendWsPayload(data);
     $("#assignChipsInfo").hide();
     isExitRoom = false;
 }
@@ -659,7 +1110,7 @@ function onPlayerTurnAutoCheck(e, data) {
     if (data.state == 1) {
         setTimeout('check()', 1000);
     }
-    $("#messages").append("<br>玩家："+p.userName+" 自动过牌");
+    appendGameMessage("玩家自动过牌", "warning");
 }
 
 // 其他玩家发消息

@@ -218,9 +218,20 @@
     }
     .props-header{
         display:flex;
-        align-items:flex-start;
+        align-items:center;
         justify-content:space-between;
-        gap:12px;
+        gap:16px;
+    }
+    .props-header-main{
+        min-width: 0;
+        flex: 1;
+    }
+    .props-header-actions{
+        display:flex;
+        align-items:center;
+        justify-content:flex-end;
+        gap:10px;
+        flex: 0 0 auto;
     }
     .props-title{
         margin: 0;
@@ -249,6 +260,41 @@
     .trap-badge strong{
         font-size: 16px;
         color: #fff;
+    }
+    #roomLogoutBtn{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        min-width: 92px;
+        height: 36px;
+        padding: 0 14px;
+        white-space: nowrap;
+        word-break: keep-all;
+        letter-spacing: .3px;
+        border-color: rgba(255, 214, 111, 0.24);
+        background: linear-gradient(135deg, rgba(255, 214, 111, 0.18) 0%, rgba(255, 118, 118, 0.16) 100%);
+        color: #fff4cf;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+    }
+    #roomLogoutBtn::before{
+        content: "⎋";
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        width: 18px;
+        height: 18px;
+        margin-right: 6px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.12);
+        font-size: 12px;
+        line-height: 1;
+    }
+    #roomLogoutBtn:hover{
+        background: linear-gradient(135deg, rgba(255, 214, 111, 0.26) 0%, rgba(255, 118, 118, 0.22) 100%);
+        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24);
+    }
+    #roomLogoutBtn.hidden{
+        display:none;
     }
     #skill_play_table{
         flex: 1;
@@ -1346,11 +1392,11 @@
 </div>
 <div id="propsDiv">
     <div class="props-header">
-        <div>
-            <h3 class="props-title">玩家状态与技能</h3>
+        <div class="props-header-main">
+            <h3 class="props-title">状态与技能</h3>
             <div class="props-subtitle">实时查看桌上玩家能量、技能数量与自己手中的技能卡。</div>
         </div>
-        <div style="display:flex; align-items:center; gap:10px;">
+        <div class="props-header-actions">
             <div id="trapInfo" class="trap-badge">当前陷阱 <strong id="trapCount">0</strong></div>
             <button id="roomLogoutBtn" class="header-action-btn hidden" onclick="logout()">退出登录</button>
         </div>

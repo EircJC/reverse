@@ -680,21 +680,25 @@ function drawControllButtons() {
     }
 
     drawRoomButtons(registerHotspots);
-    var bwidth = screenWidth * 0.1;
+    var bwidth = screenWidth * 0.09;
     var bheight = screenHeight * 0.07;
-    drawControllButton(checkPoint.x, checkPoint.y, bwidth, bheight, checkOrCall, checkOrCall, null, null, {
+    var buttonGap = screenWidth * 0.015;
+    var rowY = screenHeight * 0.79;
+    var totalWidth = bwidth * 3 + buttonGap * 2;
+    var startX = screenWidth - totalWidth - screenWidth * 0.02;
+    drawControllButton(startX, rowY, bwidth, bheight, checkOrCall, checkOrCall, null, null, {
         key: "action-" + checkOrCall,
         disabled: isActionButtonDisabled(checkOrCall),
         hotspotLabel: checkOrCall == "call" ? "点击区 · 跟注" : "点击区 · 过牌",
         registerHotspot: registerHotspots
     });
-    drawControllButton(screenWidth * 0.82, screenHeight * 0.72, bwidth, bheight, "fold", "fold", null, null, {
+    drawControllButton(startX + bwidth + buttonGap, rowY, bwidth, bheight, "fold", "fold", null, null, {
         key: "action-fold",
         disabled: isActionButtonDisabled("fold"),
         hotspotLabel: "点击区 · 弃牌",
         registerHotspot: registerHotspots
     });
-    drawControllButton(screenWidth * 0.75, screenHeight * 0.86, bwidth, bheight, "raise", "raise", null, null, {
+    drawControllButton(startX + (bwidth + buttonGap) * 2, rowY, bwidth, bheight, "raise", "raise", null, null, {
         key: "action-raise",
         disabled: isActionButtonDisabled("raise"),
         hotspotLabel: "点击区 · 加注",
