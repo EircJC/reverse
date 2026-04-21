@@ -715,6 +715,11 @@
         color: #fff;
         background: linear-gradient(135deg, rgba(99, 130, 255, 0.92) 0%, rgba(92, 66, 255, 0.92) 100%);
     }
+    .panel-btn.ghost{
+        color: #ecf1ff;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.10);
+    }
     .panel-footnote{
         margin-top: 16px;
         color: rgba(206, 214, 237, 0.7);
@@ -765,6 +770,97 @@
         color: rgba(235, 241, 255, 0.82);
         font-size: 13px;
         white-space: nowrap;
+    }
+    .lobby-user-wrap{
+        display:flex;
+        align-items:center;
+        gap: 10px;
+    }
+    .header-action-btn{
+        height: 38px;
+        padding: 0 14px;
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 999px;
+        background: rgba(255,255,255,0.08);
+        color: #eef2ff;
+        cursor: pointer;
+        transition: transform .16s ease, background .16s ease, box-shadow .16s ease;
+    }
+    .header-action-btn:hover{
+        transform: translateY(-1px);
+        background: rgba(255,255,255,0.12);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.18);
+    }
+    .header-action-btn.hidden{
+        display:none;
+    }
+    .input-inline-group{
+        display:flex;
+        gap: 10px;
+    }
+    .input-inline-group .scene-input{
+        flex:1;
+    }
+    .inline-action-btn{
+        flex: 0 0 122px;
+        height: 50px;
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 16px;
+        background: linear-gradient(135deg, rgba(99, 130, 255, 0.92) 0%, rgba(92, 66, 255, 0.92) 100%);
+        color: #fff;
+        cursor:pointer;
+        transition: transform .16s ease, opacity .16s ease, box-shadow .16s ease;
+    }
+    .inline-action-btn:hover{
+        transform: translateY(-1px);
+        box-shadow: 0 16px 30px rgba(0, 0, 0, 0.24);
+    }
+    .inline-action-btn.disabled,
+    .inline-action-btn:disabled{
+        opacity: .58;
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
+    }
+    .register-tip{
+        margin-top: 14px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: rgba(86, 120, 255, 0.10);
+        border: 1px solid rgba(86, 120, 255, 0.18);
+        color: rgba(227, 234, 255, 0.86);
+        font-size: 12px;
+        line-height: 1.8;
+    }
+    .register-tip strong{
+        color: #ffffff;
+    }
+    .register-feedback{
+        display:none;
+        margin-bottom: 16px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(148, 163, 184, 0.12);
+        color: #eef2ff;
+        font-size: 13px;
+        line-height: 1.7;
+        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.16);
+    }
+    .register-feedback.success{
+        background: rgba(34, 197, 94, 0.14);
+        border-color: rgba(34, 197, 94, 0.34);
+        color: #dcfce7;
+    }
+    .register-feedback.warning{
+        background: rgba(245, 158, 11, 0.14);
+        border-color: rgba(245, 158, 11, 0.34);
+        color: #fef3c7;
+    }
+    .register-feedback.danger{
+        background: rgba(239, 68, 68, 0.16);
+        border-color: rgba(248, 113, 113, 0.38);
+        color: #fee2e2;
     }
     .room-grid{
         display:grid;
@@ -1170,7 +1266,7 @@
     <div id="registDiv" class="scene-panel">
         <span class="scene-badge">Texas Hold’em · Netty Realtime</span>
         <h1 class="scene-title">欢迎回到牌桌</h1>
-        <p class="scene-subtitle">登录后即可进入实时对局大厅。支持高实时消息同步、自动重连和断线恢复。</p>
+        <p class="scene-subtitle">登录后即可进入实时对局大厅。现在支持邮箱验证码注册、自动重连和断线恢复。</p>
         <div class="field-group">
             <label class="field-label" for="name">账号</label>
             <input id="name" class="scene-input" type="text" placeholder="请输入账号" autocomplete="username"/>
@@ -1180,10 +1276,10 @@
             <input id="password" class="scene-input" type="password" placeholder="请输入密码" autocomplete="current-password"/>
         </div>
         <div class="panel-actions">
-            <button class="panel-btn secondary" onclick="regist()">注册账号</button>
+            <button class="panel-btn secondary" onclick="openRegisterModal()">邮箱注册</button>
             <button class="panel-btn primary" onclick="login()">立即登录</button>
         </div>
-        <div class="panel-footnote">建议先登录再进入房间；如果网络抖动，页面会自动尝试重连并恢复会话。</div>
+        <div class="panel-footnote">建议先登录再进入房间；新账号请先通过邮箱获取验证码完成注册。</div>
     </div>
     <div id="roomDiv" class="scene-panel lobby-panel">
         <div id="lobbyModePage">
@@ -1193,7 +1289,10 @@
                     <h2 class="scene-title" style="font-size: 30px; margin-bottom: 8px;">选择你的战场</h2>
                     <p class="scene-subtitle" style="margin-bottom: 0;">传统模式可快速入桌；技能卡牌版会先选择盲注级别和具体房间。</p>
                 </div>
-                <div id="lobbyUserInfo" class="lobby-user">当前玩家：未登录</div>
+                <div class="lobby-user-wrap">
+                    <div id="lobbyUserInfo" class="lobby-user">当前玩家：未登录</div>
+                    <button id="lobbyLogoutBtn" class="header-action-btn hidden" onclick="logout()">退出登录</button>
+                </div>
             </div>
             <div class="room-grid">
                 <button class="room-card classic" onclick="selectRoomMode(0)">
@@ -1251,7 +1350,54 @@
             <h3 class="props-title">玩家状态与技能</h3>
             <div class="props-subtitle">实时查看桌上玩家能量、技能数量与自己手中的技能卡。</div>
         </div>
-        <div id="trapInfo" class="trap-badge">当前陷阱 <strong id="trapCount">0</strong></div>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <div id="trapInfo" class="trap-badge">当前陷阱 <strong id="trapCount">0</strong></div>
+            <button id="roomLogoutBtn" class="header-action-btn hidden" onclick="logout()">退出登录</button>
+        </div>
+    </div>
+    <div id="registerModal" class="white_content center-modal">
+        <div class="modal-shell">
+            <div class="modal-head">
+                <div>
+                    <h3 class="modal-title">邮箱验证码注册</h3>
+                    <div class="modal-subtitle">请输入用户名、邮箱和密码，先发送验证码到邮箱，再完成账号注册。</div>
+                </div>
+                <a class="modal-close" href="javascript:void(0)" onclick="closeRegisterModal()">关闭</a>
+            </div>
+            <div class="modal-body">
+                <div id="registerFeedback" class="register-feedback"></div>
+                <div class="field-group">
+                    <label class="field-label" for="registerName">用户名</label>
+                    <input id="registerName" class="scene-input" type="text" placeholder="4-20 位字母、数字或下划线" autocomplete="username"/>
+                </div>
+                <div class="field-group">
+                    <label class="field-label" for="registerEmail">邮箱</label>
+                    <input id="registerEmail" class="scene-input" type="email" placeholder="请输入邮箱地址" autocomplete="email"/>
+                </div>
+                <div class="field-group">
+                    <label class="field-label" for="registerCode">邮箱验证码</label>
+                    <div class="input-inline-group">
+                        <input id="registerCode" class="scene-input" type="text" placeholder="请输入 6 位验证码"/>
+                        <button id="sendRegisterCodeBtn" class="inline-action-btn" onclick="sendRegisterCode()">发送验证码</button>
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label class="field-label" for="registerPassword">密码</label>
+                    <input id="registerPassword" class="scene-input" type="password" placeholder="至少 6 位密码" autocomplete="new-password"/>
+                </div>
+                <div class="field-group">
+                    <label class="field-label" for="registerConfirmPassword">确认密码</label>
+                    <input id="registerConfirmPassword" class="scene-input" type="password" placeholder="请再次输入密码" autocomplete="new-password"/>
+                </div>
+                <div class="panel-actions">
+                    <button class="panel-btn ghost" onclick="closeRegisterModal()">取消</button>
+                    <button class="panel-btn primary" onclick="regist()">完成注册</button>
+                </div>
+                <div class="register-tip">
+                    <strong>注册说明：</strong>先输入用户名和邮箱，点击“发送验证码”，收到邮件后填入 6 位验证码，再设置密码完成注册。
+                </div>
+            </div>
+        </div>
     </div>
     <div id="selectPlayer" class="white_content center-modal">
         <div class="modal-shell">

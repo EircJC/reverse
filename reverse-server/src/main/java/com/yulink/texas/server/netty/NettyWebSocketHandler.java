@@ -172,6 +172,12 @@ public class NettyWebSocketHandler extends SimpleChannelInboundHandler<WebSocket
                 case 15:
                     roomManager.createRoomAndIn(channel, message);
                     break;
+                case 16:
+                    playerManager.sendRegisterCode(channel, message);
+                    break;
+                case 17:
+                    playerManager.logout(channel, message);
+                    break;
                 default:
                     sendMessage(channel, "{\"c\":\"onException\",\"state\":0,\"message\":\"未知指令\"}");
                     log.warn("Unsupported action: {}, message: {}", action, message);

@@ -43,6 +43,8 @@ var timeBar = {
 // 画牌桌背景
 var backGroundImg = new Image();
 backGroundImg.src = "texasImages/pokertable2.png";
+var loginBackgroundImg = new Image();
+loginBackgroundImg.src = "texasImages/login6.jpg";
 // 背景图序号,0到5 共6个桌面
 var startIndexBackground = 0;
 // 背景图已经绘制
@@ -58,40 +60,46 @@ var lobbyBackGroundLoaded = false;
 var commonSkillDrawed = false;
 function drawBackground() {
     if (gamebackGroundType == "login" && !loginBackGroundLoaded) {
-        loginBackGroundLoaded = true;
         texasContext.clearRect(0, 0, screenWidth, screenHeight);
+        if (loginBackgroundImg.complete) {
+            loginBackGroundLoaded = true;
+            texasContext.globalAlpha = 1;
+            texasContext.drawImage(loginBackgroundImg, 0, 0, screenWidth, screenHeight);
+            texasContext.fillStyle = "rgba(8, 12, 24, 0.42)";
+            texasContext.fillRect(0, 0, screenWidth, screenHeight);
+        } else {
+            var gradient = texasContext.createLinearGradient(0, 0, screenWidth, screenHeight);
+            gradient.addColorStop(0, "#10192d");
+            gradient.addColorStop(0.55, "#15263f");
+            gradient.addColorStop(1, "#0f3b31");
+            texasContext.fillStyle = gradient;
+            texasContext.fillRect(0, 0, screenWidth, screenHeight);
 
-        var gradient = texasContext.createLinearGradient(0, 0, screenWidth, screenHeight);
-        gradient.addColorStop(0, "#10192d");
-        gradient.addColorStop(0.55, "#15263f");
-        gradient.addColorStop(1, "#0f3b31");
-        texasContext.fillStyle = gradient;
-        texasContext.fillRect(0, 0, screenWidth, screenHeight);
-
-        texasContext.globalAlpha = 0.16;
-        texasContext.fillStyle = "#ffd36f";
-        texasContext.beginPath();
-        texasContext.arc(screenWidth * 0.18, screenHeight * 0.18, 110, 0, Math.PI * 2);
-        texasContext.fill();
-
-        texasContext.globalAlpha = 0.12;
-        texasContext.fillStyle = "#7f95ff";
-        texasContext.beginPath();
-        texasContext.arc(screenWidth * 0.82, screenHeight * 0.28, 160, 0, Math.PI * 2);
-        texasContext.fill();
-
-        texasContext.globalAlpha = 0.08;
-        texasContext.fillStyle = "#ffffff";
-        texasContext.fillRect(screenWidth * 0.08, screenHeight * 0.12, screenWidth * 0.84, screenHeight * 0.76);
-
-        texasContext.globalAlpha = 1;
-        texasContext.strokeStyle = "rgba(255,255,255,0.08)";
-        texasContext.lineWidth = 1;
-        for (var i = 0; i < 6; i++) {
+            texasContext.globalAlpha = 0.16;
+            texasContext.fillStyle = "#ffd36f";
             texasContext.beginPath();
-            texasContext.moveTo(screenWidth * 0.08, screenHeight * (0.18 + i * 0.1));
-            texasContext.lineTo(screenWidth * 0.92, screenHeight * (0.18 + i * 0.1));
-            texasContext.stroke();
+            texasContext.arc(screenWidth * 0.18, screenHeight * 0.18, 110, 0, Math.PI * 2);
+            texasContext.fill();
+
+            texasContext.globalAlpha = 0.12;
+            texasContext.fillStyle = "#7f95ff";
+            texasContext.beginPath();
+            texasContext.arc(screenWidth * 0.82, screenHeight * 0.28, 160, 0, Math.PI * 2);
+            texasContext.fill();
+
+            texasContext.globalAlpha = 0.08;
+            texasContext.fillStyle = "#ffffff";
+            texasContext.fillRect(screenWidth * 0.08, screenHeight * 0.12, screenWidth * 0.84, screenHeight * 0.76);
+
+            texasContext.globalAlpha = 1;
+            texasContext.strokeStyle = "rgba(255,255,255,0.08)";
+            texasContext.lineWidth = 1;
+            for (var i = 0; i < 6; i++) {
+                texasContext.beginPath();
+                texasContext.moveTo(screenWidth * 0.08, screenHeight * (0.18 + i * 0.1));
+                texasContext.lineTo(screenWidth * 0.92, screenHeight * (0.18 + i * 0.1));
+                texasContext.stroke();
+            }
         }
 
         drawLoginArea();

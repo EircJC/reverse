@@ -44,5 +44,7 @@ public interface PlayerMapper {
 
     int upsertSelective(@Param("record") Player record, @Param("selective") Player.Column ... selective);
 
+    int insertRegisterPlayer(Player record);
+
     Player getPlayerByNameAndPwd(@Param("userName") String userName, @Param("pwd") String pwd);
 }

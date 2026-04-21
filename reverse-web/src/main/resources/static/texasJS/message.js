@@ -165,7 +165,11 @@ var mapping = {
     // 按房间号进入房间
     joinRoomByNo: 14,
     // 创建房间并进入
-    createRoom: 15
+    createRoom: 15,
+    // 发送注册邮箱验证码
+    sendRegisterCode: 16,
+    // 退出登录
+    logout: 17
 };
 
 function buildWsConfig(rawConfig) {
