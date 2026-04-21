@@ -15,6 +15,8 @@ var lobbyRoomState = {
     levelStats: null,
     roomList: null
 };
+var registerCodeCooldownTimer = null;
+var registerCodeCooldownSeconds = 0;
 
 function syncScenePanels() {
     if (gamebackGroundType == "login") {
@@ -44,9 +46,77 @@ function updateLobbyUserInfo() {
     }
     if (myInfo != null && myInfo.userName != null && myInfo.userName !== "") {
         $("#lobbyUserInfo").html("当前玩家：<strong>" + myInfo.userName + "</strong>");
+        $("#lobbyLogoutBtn, #roomLogoutBtn").removeClass("hidden");
     } else {
         $("#lobbyUserInfo").text("当前玩家：未登录");
+        $("#lobbyLogoutBtn, #roomLogoutBtn").addClass("hidden");
     }
+}
+
+function openRegisterModal() {
+    $("#registerModal").appendTo("body").show();
+    clearRegisterFeedback();
+    updateRegisterCodeButton();
+}
+
+function closeRegisterModal() {
+    clearRegisterFeedback();
+    $("#registerModal").hide();
+}
+
+function clearRegisterForm() {
+    $("#registerName").val("");
+    $("#registerEmail").val("");
+    $("#registerCode").val("");
+    $("#registerPassword").val("");
+    $("#registerConfirmPassword").val("");
+    clearRegisterFeedback();
+}
+
+function showRegisterFeedback(message, tone) {
+    var feedback = $("#registerFeedback");
+    if (feedback.length === 0) {
+        return;
+    }
+    var finalTone = tone || "info";
+    feedback.removeClass("success warning danger").addClass(finalTone).html(escapeMessageHtml(message)).show();
+}
+
+function clearRegisterFeedback() {
+    var feedback = $("#registerFeedback");
+    if (feedback.length === 0) {
+        return;
+    }
+    feedback.removeClass("success warning danger").text("").hide();
+}
+
+function updateRegisterCodeButton() {
+    var button = $("#sendRegisterCodeBtn");
+    if (button.length === 0) {
+        return;
+    }
+    if (registerCodeCooldownSeconds > 0) {
+        button.prop("disabled", true).addClass("disabled").text(registerCodeCooldownSeconds + "s 后重发");
+    } else {
+        button.prop("disabled", false).removeClass("disabled").text("发送验证码");
+    }
+}
+
+function startRegisterCodeCooldown(seconds) {
+    registerCodeCooldownSeconds = seconds;
+    updateRegisterCodeButton();
+    if (registerCodeCooldownTimer != null) {
+        window.clearInterval(registerCodeCooldownTimer);
+    }
+    registerCodeCooldownTimer = window.setInterval(function () {
+        registerCodeCooldownSeconds--;
+        if (registerCodeCooldownSeconds <= 0) {
+            registerCodeCooldownSeconds = 0;
+            window.clearInterval(registerCodeCooldownTimer);
+            registerCodeCooldownTimer = null;
+        }
+        updateRegisterCodeButton();
+    }, 1000);
 }
 
 function showLobbyModePage() {
@@ -145,7 +215,7 @@ function joinRoomByNo(roomNo, type, level) {
     data.roomNo = roomNo;
     data.type = type;
     data.level = level;
-    rememberRoom(type, level);
+    rememberRoom(type, level, roomNo);
     setMessageStatus("正在进入房间 " + roomNo + "...", "warning");
     sendWsPayload(data);
 }
@@ -225,14 +295,80 @@ $(function () {
             login();
         }
     });
+    $("#registerName, #registerEmail, #registerCode, #registerPassword, #registerConfirmPassword").on("keydown", function (event) {
+        if (event.keyCode === 13) {
+            regist();
+        }
+    });
+    updateLobbyUserInfo();
 });
 
 // 注册，传入账号密码
 function regist() {
+    var userName = $.trim($("#registerName").val());
+    var email = $.trim($("#registerEmail").val());
+    var emailCode = $.trim($("#registerCode").val());
+    var password = $("#registerPassword").val();
+    var confirmPassword = $("#registerConfirmPassword").val();
+    if (userName === "") {
+        showRegisterFeedback("请先输入用户名", "warning");
+        $("#registerName").focus();
+        return;
+    }
+    if (email === "") {
+        showRegisterFeedback("请先输入邮箱地址", "warning");
+        $("#registerEmail").focus();
+        return;
+    }
+    if (emailCode === "") {
+        showRegisterFeedback("请先输入邮箱验证码", "warning");
+        $("#registerCode").focus();
+        return;
+    }
+    if (password === "") {
+        showRegisterFeedback("请先输入密码", "warning");
+        $("#registerPassword").focus();
+        return;
+    }
+    if (confirmPassword === "") {
+        showRegisterFeedback("请再次输入密码", "warning");
+        $("#registerConfirmPassword").focus();
+        return;
+    }
+    if (password !== confirmPassword) {
+        showRegisterFeedback("两次输入的密码不一致，请重新确认", "danger");
+        $("#registerConfirmPassword").focus();
+        return;
+    }
     var data = {};
     data.action = mapping.regist;
-    data.userName = $("#name").val();
-    data.userpwd = $("#password").val();
+    data.userName = userName;
+    data.email = email;
+    data.emailCode = emailCode;
+    data.userpwd = password;
+    data.confirmPwd = confirmPassword;
+    showRegisterFeedback("正在提交注册请求，请稍候...", "warning");
+    sendWsPayload(data);
+}
+
+function sendRegisterCode() {
+    var userName = $.trim($("#registerName").val());
+    var email = $.trim($("#registerEmail").val());
+    if (userName === "") {
+        showRegisterFeedback("发送验证码前请先输入用户名", "warning");
+        $("#registerName").focus();
+        return;
+    }
+    if (email === "") {
+        showRegisterFeedback("发送验证码前请先输入邮箱地址", "warning");
+        $("#registerEmail").focus();
+        return;
+    }
+    var data = {};
+    data.action = mapping.sendRegisterCode;
+    data.userName = userName;
+    data.email = email;
+    showRegisterFeedback("正在发送验证码，请稍候...", "warning");
     sendWsPayload(data);
 }
 // 登陆，传入账号密码
@@ -241,6 +377,12 @@ function login() {
     var userpwd = $("#password").val();
     rememberCredentials(userName, userpwd);
     sendWsPayload(buildLoginPayload(userName, userpwd));
+}
+
+function logout() {
+    var data = {};
+    data.action = mapping.logout;
+    sendWsPayload(data);
 }
 // 加入房间，传入房间类型
 function enterRoom(type,level) {
@@ -516,25 +658,59 @@ function onLogin(e, data) {
         syncScenePanels();
         showLobbyModePage();
         if (shouldRejoinRoom()) {
-            enterRoom(texasWsState.room.type, texasWsState.room.level);
+            if (texasWsState.room.roomNo != null && texasWsState.room.roomNo !== "") {
+                joinRoomByNo(texasWsState.room.roomNo, texasWsState.room.type, texasWsState.room.level);
+            } else {
+                enterRoom(texasWsState.room.type, texasWsState.room.level);
+            }
             markRoomRejoinCompleted();
         }
     } else {
         clearCredentials();
-        setGameMessage("登录失败", "danger");
+        setGameMessage(data.message || "登录失败", "danger");
     }
 }
 // 注册结果
 function onRegister(e, data) {
     if (data.state == 1) {
-        // 注册成功后自动登陆
-        login();
-        $("#name").val("");
-        $("#password").val("");
+        $("#name").val($("#registerName").val());
+        $("#password").val($("#registerPassword").val());
+        showRegisterFeedback("注册成功，正在自动登录...", "success");
+        closeRegisterModal();
         setGameMessage("注册成功，正在自动登录", "success");
+        login();
+        clearRegisterForm();
     } else {
-        setGameMessage("注册失败", "danger");
+        showRegisterFeedback("注册失败：" + data.message, "danger");
     }
+}
+function onSendRegisterCode(e, data) {
+    if (data.state == 1) {
+        startRegisterCodeCooldown(60);
+        showRegisterFeedback("验证码发送成功，请留意邮箱：" + $("#registerEmail").val(), "success");
+    } else {
+        showRegisterFeedback(data.message, "danger");
+    }
+}
+function onLogout(e, data) {
+    myInfo = {};
+    roomInfo = {};
+    nextRoundSkillAction = "";
+    removeAllPlayers();
+    clearCredentials();
+    clearRoomMemory();
+    closeRegisterModal();
+    clearRegisterForm();
+    gamebackGroundType = "login";
+    loginBackGroundLoaded = false;
+    lobbyBackGroundLoaded = false;
+    backGroundDrawed = false;
+    commonSkillDrawed = false;
+    clearMessageStream();
+    syncScenePanels();
+    updateLobbyUserInfo();
+    setGameMessage(data.message || "已退出登录", "success");
+    $.texasMusic.playBackMu();
 }
 function onRoomLevelStats(e, data) {
     if (data.state == 1) {
@@ -563,6 +739,7 @@ function onEnterRoom(e, data) {
         clearCommonCards();
         clearSkillDiv();
         roomInfo = JSON.parse(data.message);
+        rememberRoom(roomInfo.type, roomInfo.level, roomInfo.roomNo);
         // 等待玩家列表
         var waitPlayers = roomInfo.waitPlayers;
         // 开局重置ingame状态
@@ -602,11 +779,13 @@ function onEnterRoom(e, data) {
         commonCards = roomInfo.communityCards;
         commonCardsDrawed = false;
         pot = roomInfo.betAmount;
+        setMessageStatus("房间编号：" + roomInfo.roomNo, "accent");
         drawRoomInfos();
         //如果在游戏结束阶段
         winnerList = roomInfo.winPlayersMap;
         drawWinners();
     } else {
+        setMessageStatus("进入房间失败：" + data.message, "danger");
         setGameMessage("进入房间失败：" + data.message, "danger");
     }
 }
@@ -619,6 +798,7 @@ function onOutRoom() {
     syncScenePanels();
     showLobbyModePage();
     clearRoomMemory();
+    setMessageStatus("已返回大厅", "success");
     $.texasMusic.playBackMu();
 }
 // 其他玩家加入房间

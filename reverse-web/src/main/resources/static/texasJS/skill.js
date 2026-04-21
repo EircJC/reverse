@@ -125,7 +125,7 @@ function drawPlayerSkillInfos() {
 // 绘制玩家卡牌相关信息
 function drawPlayerSkillInfo(player, playerSkillCards) {
   var isSelf = player.id == myInfo.id;
-  var cardClass = "player-skill-card" + (isSelf ? " self" : " compact");
+  var cardClass = "player-skill-card compact" + (isSelf ? " self" : "");
   var skill_player_info = "<div id='skill_player_info_"+player.id+"' class='" + cardClass + "'>";
   skill_player_info += "<div class='player-skill-head'>";
   skill_player_info += "<img class='player-avatar' src='" + escapeHtml(getPlayerAvatarUrl(player)) + "' alt='" + escapeHtml(player.userName) + "' onerror=\"" + getPlayerAvatarErrorHandler() + "\">";

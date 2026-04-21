@@ -28,7 +28,7 @@ var checkPoint = {};
 // checkPoint.x = oneWidth * 0.68 * screenScale;
 // checkPoint.y = oneHeight * 0.82 * screenScale;
 checkPoint.x = screenWidth * 0.68;
-checkPoint.y = screenHeight * 0.82;
+checkPoint.y = screenHeight * 0.72;
 // 玩家头像等信息区域
 var playerRecWidth = 50 * screenScale;
 var playerRecHeight = 50 * screenScale;
@@ -43,6 +43,8 @@ var timeBar = {
 // 画牌桌背景
 var backGroundImg = new Image();
 backGroundImg.src = "texasImages/pokertable2.png";
+var loginBackgroundImg = new Image();
+loginBackgroundImg.src = "texasImages/login6.jpg";
 // 背景图序号,0到5 共6个桌面
 var startIndexBackground = 0;
 // 背景图已经绘制
@@ -51,9 +53,6 @@ var backGroundDrawed = false;
 var players = [];
 // 游戏所处背景，首页login,房间room,大厅lobby
 var gamebackGroundType = "login";
-// 首页登陆界面
-var loginBackGround = new Image();
-loginBackGround.src = "texasImages/login6.jpg";
 var loginBackGroundLoaded = false;
 var lobbyBackGroundLoaded = false;
 
@@ -61,17 +60,49 @@ var lobbyBackGroundLoaded = false;
 var commonSkillDrawed = false;
 function drawBackground() {
     if (gamebackGroundType == "login" && !loginBackGroundLoaded) {
-        if (loginBackGround.complete) {
-            var x = 0, y = 0;
+        texasContext.clearRect(0, 0, screenWidth, screenHeight);
+        if (loginBackgroundImg.complete) {
             loginBackGroundLoaded = true;
-            texasContext.drawImage(loginBackGround, 0, 0, 1024,
-                677, x, y, screenWidth, screenHeight);
-            // 信息背景灰色
-            texasContext.globalAlpha = 0.5;
-            texasContext.fillStyle = "#604D4F";
+            texasContext.globalAlpha = 1;
+            texasContext.drawImage(loginBackgroundImg, 0, 0, screenWidth, screenHeight);
+            texasContext.fillStyle = "rgba(8, 12, 24, 0.42)";
             texasContext.fillRect(0, 0, screenWidth, screenHeight);
-            drawLoginArea();
+        } else {
+            var gradient = texasContext.createLinearGradient(0, 0, screenWidth, screenHeight);
+            gradient.addColorStop(0, "#10192d");
+            gradient.addColorStop(0.55, "#15263f");
+            gradient.addColorStop(1, "#0f3b31");
+            texasContext.fillStyle = gradient;
+            texasContext.fillRect(0, 0, screenWidth, screenHeight);
+
+            texasContext.globalAlpha = 0.16;
+            texasContext.fillStyle = "#ffd36f";
+            texasContext.beginPath();
+            texasContext.arc(screenWidth * 0.18, screenHeight * 0.18, 110, 0, Math.PI * 2);
+            texasContext.fill();
+
+            texasContext.globalAlpha = 0.12;
+            texasContext.fillStyle = "#7f95ff";
+            texasContext.beginPath();
+            texasContext.arc(screenWidth * 0.82, screenHeight * 0.28, 160, 0, Math.PI * 2);
+            texasContext.fill();
+
+            texasContext.globalAlpha = 0.08;
+            texasContext.fillStyle = "#ffffff";
+            texasContext.fillRect(screenWidth * 0.08, screenHeight * 0.12, screenWidth * 0.84, screenHeight * 0.76);
+
+            texasContext.globalAlpha = 1;
+            texasContext.strokeStyle = "rgba(255,255,255,0.08)";
+            texasContext.lineWidth = 1;
+            for (var i = 0; i < 6; i++) {
+                texasContext.beginPath();
+                texasContext.moveTo(screenWidth * 0.08, screenHeight * (0.18 + i * 0.1));
+                texasContext.lineTo(screenWidth * 0.92, screenHeight * (0.18 + i * 0.1));
+                texasContext.stroke();
+            }
         }
+
+        drawLoginArea();
     } else if (gamebackGroundType == "lobby" && !lobbyBackGroundLoaded) {
         if (backGroundImg.complete) {
             lobbyBackGroundLoaded = true;
@@ -103,15 +134,12 @@ function drawBackground() {
 }
 // 玩家登陆信息填写部分
 function drawLoginArea() {
-    texasContext.globalAlpha = 1;
-    texasContext.font = screenScale * 16 + "px" + " 楷体";
-    texasContext.fillStyle = "#fff";
-    texasContext.fillText("NAME", screenWidth * 0.4 - 100, screenHeight * 0.29);
-    texasContext.fillText("PASSWORD", screenWidth * 0.4 - 162, screenHeight * 0.41);
+    syncScenePanels();
     drawLoginButtons();
 }
 // 大厅，选房间界面
 function drawLobbyArea() {
+    syncScenePanels();
     drawLobbyButtons();
 }
 // 在指定位置创建timebar
@@ -172,6 +200,19 @@ function cancelTimeBar() {
 function createPlayer(player) {
     if (player.betChips == null) {
         player.betChips = 0;
+    }
+    for (var i in players) {
+        var currentPlayer = players[i];
+        if ((player.id != null && currentPlayer.id == player.id)
+            || (player.seatNum != null && currentPlayer.seatNum == player.seatNum)) {
+            player.index = currentPlayer.index;
+            player.position = currentPlayer.position;
+            player.betPosition = currentPlayer.betPosition;
+            player.cardDrawed = false;
+            player.infoDrawed = false;
+            players[i] = player;
+            return;
+        }
     }
     players.push(player);
 }
@@ -308,12 +349,20 @@ function drawPlayer(x, y, player) {
         /* 透明度 */
         texasContext.globalAlpha = 1;
         player.img.onload = function () {
+            clearRectByBackGround(x, y, playerRecWidth, playerRecHeight);
             texasContext.drawImage(player.img, x, y, playerRecWidth, playerRecHeight);
         }
-        if (player.picLogo == null) {
-            setPlayerPicUrl(player);
+        player.img.onerror = function () {
+            var fallbackAvatar = player.avatarFallbackTried ? "texasImages/player.png" : getLocalPlayerAvatarUrl(player);
+            if (player.avatarFallbackTried && player.img.src.indexOf("texasImages/player.png") >= 0) {
+                player.img.onerror = null;
+                return;
+            }
+            player.avatarFallbackTried = true;
+            player.picLogo = fallbackAvatar;
+            player.img.src = fallbackAvatar;
         }
-        player.img.src = player.picLogo;
+        player.img.src = getPlayerAvatarUrl(player);
     }
 
 }
@@ -427,34 +476,244 @@ function drawPlayerInfo(player) {
 }
 var checkOrCall = "check";
 var ControllButtonsDrawed = false;
+var canvasHotspots = [];
+var hoveredHotspotKey = null;
+var pressedHotspotKey = null;
+var showCanvasHotspotDebug = false;
+
+function resetCanvasHotspots() {
+    canvasHotspots = [];
+    $(texasCanvas).off("click.texasControls");
+    $(texasCanvas).off("mousemove.texasControls");
+    $(texasCanvas).off("mousedown.texasControls");
+    $(texasCanvas).off("mouseup.texasControls");
+    $(texasCanvas).off("mouseleave.texasControls");
+    $(texasCanvas).css("cursor", "default");
+    hoveredHotspotKey = null;
+    pressedHotspotKey = null;
+}
+
+function findCanvasHotspot(cx, cy) {
+    for (var i = canvasHotspots.length - 1; i >= 0; i--) {
+        var hotspot = canvasHotspots[i];
+        if (cx >= hotspot.x && cx <= hotspot.x + hotspot.width
+            && cy >= hotspot.y && cy <= hotspot.y + hotspot.height) {
+            return hotspot;
+        }
+    }
+    return null;
+}
+
+function setHoveredHotspot(key) {
+    if (hoveredHotspotKey !== key) {
+        hoveredHotspotKey = key;
+        ControllButtonsDrawed = false;
+    }
+}
+
+function setPressedHotspot(key) {
+    if (pressedHotspotKey !== key) {
+        pressedHotspotKey = key;
+        ControllButtonsDrawed = false;
+    }
+}
+
+function getCanvasPointerPosition(evt) {
+    if (texasCanvas == null || texasCanvas.getBoundingClientRect == null) {
+        return {x: 0, y: 0};
+    }
+    var rect = texasCanvas.getBoundingClientRect();
+    var rectWidth = rect.width || texasCanvas.width || 1;
+    var rectHeight = rect.height || texasCanvas.height || 1;
+    return {
+        x: (evt.clientX - rect.left) * (texasCanvas.width / rectWidth),
+        y: (evt.clientY - rect.top) * (texasCanvas.height / rectHeight)
+    };
+}
+
+function bindCanvasHotspots() {
+    $(texasCanvas).off("click.texasControls");
+    $(texasCanvas).off("mousemove.texasControls");
+    $(texasCanvas).off("mousedown.texasControls");
+    $(texasCanvas).off("mouseup.texasControls");
+    $(texasCanvas).off("mouseleave.texasControls");
+
+    $(texasCanvas).on("click.texasControls", function (e) {
+        var point = getCanvasPointerPosition(e);
+        var cx = point.x;
+        var cy = point.y;
+        var hotspot = findCanvasHotspot(cx, cy);
+        setPressedHotspot(null);
+        if (hotspot != null && !hotspot.disabled) {
+            var func = eval(hotspot.clickFunc);
+            new func(hotspot.type, hotspot.level);
+        }
+    });
+
+    $(texasCanvas).on("mousemove.texasControls", function (e) {
+        var point = getCanvasPointerPosition(e);
+        var cx = point.x;
+        var cy = point.y;
+        var hotspot = findCanvasHotspot(cx, cy);
+        if (hotspot != null) {
+            setHoveredHotspot(hotspot.key);
+            $(texasCanvas).css("cursor", hotspot.disabled ? "not-allowed" : "pointer");
+            return;
+        }
+        setHoveredHotspot(null);
+        $(texasCanvas).css("cursor", "default");
+    });
+
+    $(texasCanvas).on("mousedown.texasControls", function (e) {
+        var point = getCanvasPointerPosition(e);
+        var cx = point.x;
+        var cy = point.y;
+        var hotspot = findCanvasHotspot(cx, cy);
+        if (hotspot != null && !hotspot.disabled) {
+            setPressedHotspot(hotspot.key);
+        }
+    });
+
+    $(texasCanvas).on("mouseup.texasControls", function () {
+        setPressedHotspot(null);
+    });
+
+    $(texasCanvas).on("mouseleave.texasControls", function () {
+        setHoveredHotspot(null);
+        setPressedHotspot(null);
+        $(texasCanvas).css("cursor", "default");
+    });
+}
+
+function isMyTurn() {
+    return roomInfo != null && myInfo != null
+        && roomInfo.nextturn != null && myInfo.seatNum != null
+        && roomInfo.nextturn == myInfo.seatNum;
+}
+
+function isActionButtonDisabled(actionName) {
+    if (actionName == "exitRoom") {
+        return false;
+    }
+    if (myInfo == null || myInfo.bodyChips == null) {
+        return true;
+    }
+    if (!isMyTurn()) {
+        return true;
+    }
+    if ((actionName == "raise" || actionName == "call") && myInfo.bodyChips <= 0) {
+        return true;
+    }
+    return false;
+}
+
+function drawRoundedRectPath(x, y, width, height, radius) {
+    var rectRadius = Math.min(radius, width / 2, height / 2);
+    texasContext.beginPath();
+    texasContext.moveTo(x + rectRadius, y);
+    texasContext.lineTo(x + width - rectRadius, y);
+    texasContext.quadraticCurveTo(x + width, y, x + width, y + rectRadius);
+    texasContext.lineTo(x + width, y + height - rectRadius);
+    texasContext.quadraticCurveTo(x + width, y + height, x + width - rectRadius, y + height);
+    texasContext.lineTo(x + rectRadius, y + height);
+    texasContext.quadraticCurveTo(x, y + height, x, y + height - rectRadius);
+    texasContext.lineTo(x, y + rectRadius);
+    texasContext.quadraticCurveTo(x, y, x + rectRadius, y);
+    texasContext.closePath();
+}
+
+function drawCanvasHotspotMarker(x, y, width, height, label, disabled) {
+    if (!showCanvasHotspotDebug) {
+        return;
+    }
+    var markerColor = disabled ? "rgba(255, 155, 155, 0.88)" : "rgba(80, 226, 255, 0.92)";
+    var fillColor = disabled ? "rgba(255, 107, 107, 0.08)" : "rgba(80, 226, 255, 0.08)";
+    var tagWidth = Math.max(70, label.length * 9 + 18);
+    var tagHeight = 18;
+    var tagX = x + (width - tagWidth) / 2;
+    var tagY = y - tagHeight - 8;
+
+    texasContext.save();
+    texasContext.globalAlpha = 1;
+    texasContext.fillStyle = fillColor;
+    drawRoundedRectPath(x, y, width, height, 12 * screenScale);
+    texasContext.fill();
+
+    texasContext.setLineDash([6, 5]);
+    texasContext.lineWidth = 2;
+    texasContext.strokeStyle = markerColor;
+    drawRoundedRectPath(x, y, width, height, 12 * screenScale);
+    texasContext.stroke();
+    texasContext.setLineDash([]);
+
+    texasContext.fillStyle = markerColor;
+    texasContext.fillRect(x - 1, y - 1, 8, 8);
+    texasContext.fillRect(x + width - 7, y - 1, 8, 8);
+    texasContext.fillRect(x - 1, y + height - 7, 8, 8);
+    texasContext.fillRect(x + width - 7, y + height - 7, 8, 8);
+
+    if (tagY > 0) {
+        texasContext.fillStyle = "rgba(9, 18, 34, 0.92)";
+        drawRoundedRectPath(tagX, tagY, tagWidth, tagHeight, 9);
+        texasContext.fill();
+        texasContext.lineWidth = 1;
+        texasContext.strokeStyle = markerColor;
+        texasContext.stroke();
+
+        texasContext.font = "600 " + (screenScale * 8) + "px PingFang SC";
+        texasContext.fillStyle = markerColor;
+        texasContext.textAlign = "center";
+        texasContext.textBaseline = "middle";
+        texasContext.fillText(label, tagX + tagWidth / 2, tagY + tagHeight / 2);
+        texasContext.textAlign = "start";
+        texasContext.textBaseline = "alphabetic";
+    }
+    texasContext.restore();
+}
 
 // 绘制所有房间内控制按钮
 function drawControllButtons() {
-    if (!ControllButtonsDrawed) {
+    var registerHotspots = !ControllButtonsDrawed;
+    if (registerHotspots) {
+        resetCanvasHotspots();
         ControllButtonsDrawed = true;
-        // 先移除点击事件
-        $(texasCanvas).unbind("click");
-        drawRoomButtons();
-        var bwidth = screenWidth * 0.1;
-        var bheight = screenHeight * 0.07;
-        drawControllButton(checkPoint.x, checkPoint.y, bwidth, bheight, checkOrCall, checkOrCall);
-        drawControllButton(screenWidth * 0.82, screenHeight * 0.82, bwidth, bheight, "fold", "fold");
-        drawControllButton(screenWidth * 0.55, screenHeight * 0.92, bwidth, bheight, "raise", "raise");
     }
 
+    drawRoomButtons(registerHotspots);
+    var bwidth = screenWidth * 0.09;
+    var bheight = screenHeight * 0.07;
+    var buttonGap = screenWidth * 0.015;
+    var rowY = screenHeight * 0.79;
+    var totalWidth = bwidth * 3 + buttonGap * 2;
+    var startX = screenWidth - totalWidth - screenWidth * 0.02;
+    drawControllButton(startX, rowY, bwidth, bheight, checkOrCall, checkOrCall, null, null, {
+        key: "action-" + checkOrCall,
+        disabled: isActionButtonDisabled(checkOrCall),
+        hotspotLabel: checkOrCall == "call" ? "点击区 · 跟注" : "点击区 · 过牌",
+        registerHotspot: registerHotspots
+    });
+    drawControllButton(startX + bwidth + buttonGap, rowY, bwidth, bheight, "fold", "fold", null, null, {
+        key: "action-fold",
+        disabled: isActionButtonDisabled("fold"),
+        hotspotLabel: "点击区 · 弃牌",
+        registerHotspot: registerHotspots
+    });
+    drawControllButton(startX + (bwidth + buttonGap) * 2, rowY, bwidth, bheight, "raise", "raise", null, null, {
+        key: "action-raise",
+        disabled: isActionButtonDisabled("raise"),
+        hotspotLabel: "点击区 · 加注",
+        registerHotspot: registerHotspots
+    });
+    if (registerHotspots) {
+        bindCanvasHotspots();
+    }
 }
 var loginButtonsDrawed = false;
 // 绘制登陆控制按钮
 function drawLoginButtons() {
     if (!loginButtonsDrawed) {
         loginButtonsDrawed = true;
-        // 先移除点击事件
-        $(texasCanvas).unbind("click");
-        var bwidth = screenWidth * 0.12;
-        var bheight = screenHeight * 0.07;
-        drawControllButton(screenWidth * 0.5, screenHeight * 0.6, bwidth, bheight, "login", "login");
-        drawControllButton(screenWidth * 0.35, screenHeight * 0.6, bwidth, bheight, "regist", "regist");
-       // drawControllButton(screenWidth * 0.75, screenHeight * 0.2, screenWidth * 0.15, bheight, "fullScreen", "fullScreen","canvasDiv");
+        resetCanvasHotspots();
     }
 }
 var LobbyButtonsDrawed = false;
@@ -462,70 +721,95 @@ var LobbyButtonsDrawed = false;
 function drawLobbyButtons() {
     if (!LobbyButtonsDrawed) {
         LobbyButtonsDrawed = true;
-        // 先移除点击事件
-        $(texasCanvas).unbind("click");
-        var bwidth = screenWidth * 0.2;
-        var bheight = screenHeight * 0.07;
-        drawControllButton(screenWidth * 0.4, screenHeight * 0.4, bwidth, bheight, "传统德州扑克", "enterRoom", 0, 0);
-        drawControllButton(screenWidth * 0.4, screenHeight * 0.5, bwidth, bheight, "技能卡牌版", "enterRoom", 1, 0);
-        //drawControllButton(screenWidth * 0.4, screenHeight * 0.6, bwidth, bheight, "玩家卡组版", "enterRoom", 2, 0);
+        resetCanvasHotspots();
     }
 }
 // 房间控制
-function drawRoomButtons() {
-    // 先移除点击事件
-    $(texasCanvas).unbind("click");
+function drawRoomButtons(registerHotspots) {
+    var registerHotspot = registerHotspots !== false;
     var bwidth = screenWidth * 0.13;
     var bheight = screenHeight * 0.07;
-    drawControllButton(screenWidth * 0.03, screenHeight * 0.02, bwidth, bheight, "Exit Room", "exitRoom", 0, 0);
+    drawControllButton(screenWidth * 0.03, screenHeight * 0.02, bwidth, bheight, "Exit Room", "exitRoom", 0, 0, {
+        key: "action-exitRoom",
+        variant: "danger",
+        disabled: false,
+        hotspotLabel: "点击区 · 退出房间",
+        registerHotspot: registerHotspot
+    });
 }
 // 绘制一个控制按钮
-function drawControllButton(x, y, bwidth, bheight, txt, clickFunc, type, level) {
-    var gradient = texasContext.createLinearGradient(x, y - bheight, x, y + bheight);
-    gradient.addColorStop(0.2, "magenta");
-    gradient.addColorStop(1, "blue");
-    // 用渐变填色
-    texasContext.fillStyle = gradient;
-    /* 边框的宽度 */
-    texasContext.globalAlpha = 1;
-    /* 设置填充颜色 */
-    texasContext.fillRect(x, y, bwidth, bheight);
-    /* 绘制一个矩形，前两个参数决定开始位置，后两个分别是矩形的宽和高 */
-    texasContext.font = screenScale * 12 + "px" + " 楷体";
-    texasContext.fillStyle = "#fff";
-    texasContext.fillText(txt, x + screenScale * 17, y + oneHeight * 0.05 * screenScale - screenScale * 2);
-    const events = $._data($(texasCanvas), "events")
-    const clickEvent = events && events["click"];
-    const mousemoveEvent = events && events["mousemove"];
-    if (!clickEvent) {
-        // 绑定点击事件
-        $(texasCanvas).bind("click", null, (function (e) {// 给canvas添加点击事件
-            // 获取事件在canvas中发生的位置
-            var cx = e.clientX - texasCanvas.offsetLeft;
-            var cy = e.clientY - texasCanvas.offsetTop;
-            // 如果事件位置在矩形区域中,调试会导致的浏览器坐标错误
-            if (cx >= x && cx <= x + bwidth && cy >= y && cy <= y + bheight) {
-                var func = eval(clickFunc);
-                new func(type,level);
-            }
-        }));
+function drawControllButton(x, y, bwidth, bheight, txt, clickFunc, type, level, options) {
+    var buttonOptions = options || {};
+    var key = buttonOptions.key || (clickFunc + "-" + txt + "-" + type + "-" + level);
+    var disabled = buttonOptions.disabled === true;
+    var hovered = hoveredHotspotKey === key;
+    var pressed = pressedHotspotKey === key;
+    var variant = buttonOptions.variant || "primary";
+    var hotspotLabel = buttonOptions.hotspotLabel || ("点击区 · " + txt);
+
+    var topColor = "#7d5cff";
+    var bottomColor = "#3f47ff";
+    if (variant === "danger") {
+        topColor = "#ff7878";
+        bottomColor = "#ff4d6d";
+    }
+    if (variant === "neutral") {
+        topColor = "#4f68ff";
+        bottomColor = "#3850dc";
+    }
+    if (disabled) {
+        topColor = "rgba(118, 130, 160, 0.65)";
+        bottomColor = "rgba(76, 86, 112, 0.65)";
+    } else if (pressed) {
+        topColor = "rgba(255, 212, 111, 0.92)";
+        bottomColor = "rgba(255, 170, 64, 0.92)";
+    } else if (hovered) {
+        topColor = "rgba(146, 167, 255, 0.98)";
+        bottomColor = "rgba(86, 108, 255, 0.98)";
     }
 
-    if (!mousemoveEvent) {
-        // 绑定hover事件
-        $(texasCanvas).bind("mousemove", null, (function (e) {// 给canvas添加点击事件
-            var cx = e.clientX - texasCanvas.offsetLeft;
-            var cy = e.clientY - texasCanvas.offsetTop;
-            // 如果事件位置在矩形区域中,调试会导致的浏览器坐标错误
-            if (cx >= x && cx <= x + bwidth && cy >= y && cy <= y + bheight) {
-                setTimeout(() => {
-                    $(texasCanvas).css("cursor", "pointer");
-                }, 0)
-            } else {
-                $(texasCanvas).css("cursor", "unset");
-            }
-        }));
+    var gradient = texasContext.createLinearGradient(x, y, x, y + bheight);
+    gradient.addColorStop(0, topColor);
+    gradient.addColorStop(1, bottomColor);
+    // 用渐变填色
+    texasContext.fillStyle = gradient;
+    texasContext.globalAlpha = 1;
+    drawRoundedRectPath(x, y, bwidth, bheight, 14 * screenScale);
+    texasContext.fill();
+
+    texasContext.lineWidth = 1.5;
+    texasContext.strokeStyle = disabled ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.26)";
+    texasContext.stroke();
+
+    if (!disabled) {
+        texasContext.fillStyle = hovered || pressed ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.08)";
+        drawRoundedRectPath(x + 2, y + 2, bwidth - 4, bheight * 0.42, 12 * screenScale);
+        texasContext.fill();
     }
+
+    texasContext.font = "600 " + (screenScale * 12) + "px PingFang SC";
+    texasContext.fillStyle = disabled ? "rgba(240,244,255,0.72)" : "#fff";
+    texasContext.textAlign = "center";
+    texasContext.textBaseline = "middle";
+    texasContext.fillText(txt, x + bwidth / 2, y + bheight / 2 + (pressed ? 1 : 0));
+    texasContext.textAlign = "start";
+    texasContext.textBaseline = "alphabetic";
+
+    if (buttonOptions.registerHotspot !== false) {
+        canvasHotspots.push({
+            key: key,
+            x: x,
+            y: y,
+            width: bwidth,
+            height: bheight,
+            clickFunc: clickFunc,
+            type: type,
+            level: level,
+            disabled: disabled
+        });
+    }
+
+    drawCanvasHotspotMarker(x, y, bwidth, bheight, hotspotLabel, disabled);
 }
 // 绘制所有玩家的扑克牌
 function drawCards() {
@@ -612,7 +896,45 @@ function clearCommonCards() {
 }
 // 设置玩家头像前后缀
 function setPlayerPicUrl(player) {
-    player.picLog = "texasImages/player" + (player.seatNum-1) + ".png";
+    player.picLogo = getLocalPlayerAvatarUrl(player);
+}
+
+function getLocalPlayerAvatarUrl(player) {
+    if (player == null) {
+        return "texasImages/player.png";
+    }
+    var avatarKey = "";
+    if (player.id != null && String(player.id).trim() !== "") {
+        avatarKey = String(player.id);
+    } else if (player.userName != null && String(player.userName).trim() !== "") {
+        avatarKey = String(player.userName);
+    } else if (player.seatNum != null && !isNaN(player.seatNum)) {
+        avatarKey = String(player.seatNum);
+    }
+    if (avatarKey === "") {
+        return "texasImages/player.png";
+    }
+    var hash = 0;
+    for (var i = 0; i < avatarKey.length; i++) {
+        hash = ((hash << 5) - hash) + avatarKey.charCodeAt(i);
+        hash = hash & hash;
+    }
+    var avatarIndex = Math.abs(hash) % 5;
+    return "texasImages/player" + avatarIndex + ".png";
+}
+
+function getPlayerAvatarUrl(player) {
+    if (player == null) {
+        return "texasImages/player.png";
+    }
+    if (player.picLogo == null || player.picLogo == undefined || String(player.picLogo).trim() === "") {
+        setPlayerPicUrl(player);
+    }
+    return player.picLogo;
+}
+
+function getPlayerAvatarErrorHandler() {
+    return "this.onerror=null;this.src='texasImages/player.png';";
 }
 var winnerList = {4: 500, 0: 100, 1: 200, 2: 300, 3: 400, 5: 600};
 // 提示获胜玩家

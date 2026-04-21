@@ -24,6 +24,9 @@ power:
     count: 6
 
 management:
+  health:
+    mail:
+      enabled: false
   endpoints:
     beans:
       enabled: false
@@ -63,6 +66,26 @@ server:
     context-path: /texasServer
 
 spring:
+  mail:
+    host: smtp.yeah.net
+    port: 465
+    username: # 邮箱
+    password: # 授权码
+    protocol: smtp
+    properties:
+      mail:
+        smtp:
+          auth: true
+          auth.mechanisms: LOGIN
+          ssl:
+            enable: true
+            trust: smtp.yeah.net
+          starttls:
+            enable: false
+            required: false
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
   flyway:
     enabled: false   # 默认关闭
     baseline-description: baselines
@@ -95,3 +118,12 @@ swagger:
     enable: false   # 默认关闭
     name: 新开发文档  # 可以用于版本迭代过程中API展示分组
     pathRegex: /api/v1/user/order/.*|/api/v1/user/contract/.*   # 分组正则
+
+texas:
+  register:
+    mail:
+      enabled: true #开启邮件注册
+      from: ${TEXAS_MAIL_FROM:${TEXAS_MAIL_USERNAME:openrelay@yeah.net}}
+      subject: Texas Hold'em 注册验证码
+      code-expire-minutes: 10
+      code-cooldown-seconds: 60
