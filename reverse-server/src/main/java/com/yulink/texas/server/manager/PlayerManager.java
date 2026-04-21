@@ -12,7 +12,7 @@ import com.yulink.texas.server.common.utils.SkillCardsUtil;
 import com.yulink.texas.server.common.utils.TexasStatic;
 import com.yulink.texas.server.constants.SkillResultEnum;
 import com.yulink.texas.server.ws.TexasUtil;
-import javax.websocket.Session;
+import io.netty.channel.Channel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,12 +30,17 @@ public class PlayerManager {
 
     @Autowired
     private PlayerService playerService;
+    @Autowired
+    private RoomManager roomManager;
+    @Autowired
+    private SkillCardsUtil skillCardsUtil;
+
 
     public int insertPlayer() {
         return playerService.insertPlayer();
     }
 
-    public void register(Session session, String message) {
+    public void register(Channel channel, String message) {
 //        RetMsg rm = new RetMsg();
 //        rm.setAction("onRegister");
 //        Player player = new Player();
@@ -56,7 +61,7 @@ public class PlayerManager {
 //        TexasUtil.sendMsgToOne(player, retMsg);
     }
 
-    public void login(Session session, String message) {
+    public void login(Channel channel, String message) {
         RetMsg rm = new RetMsg();
         rm.setAction("onLogin");
         PlayerVO player = new PlayerVO();
@@ -69,27 +74,27 @@ public class PlayerManager {
             rm.setState(1);
             BeanUtils.copyProperties(currPlayer, player);
             player.setId(currPlayer.getId()+"");
-            player.setSession(session);
+            player.setChannel(channel);
             rm.setMessage(JsonUtils.toJson(player, PlayerVO.class));
-            TexasStatic.loginPlayerMap.put(session.getId(), player);
-            TexasStatic.playerSessionMap.put(player.getId(), session.getId()); // 玩家窗口多开是否需要重新设计数据模型
+            TexasStatic.loginPlayerMap.put(channel.id().asShortText(), player);
+            TexasStatic.playerSessionMap.put(player.getId(), channel.id().asShortText()); // 玩家窗口多开是否需要重新设计数据模型
         }
 
         String retMsg = JsonUtils.toJson(rm, RetMsg.class);
-        TexasUtil.sendMsgToOne(session, retMsg);
+        TexasUtil.sendMsgToOne(channel, retMsg);
 
     }
 
-    public void betChips(Session session, String message) {
+    public void betChips(Channel channel, String message) {
 
         BetPlayer bp = JsonUtils.fromJson(message, BetPlayer.class);
-        PlayerVO p = TexasUtil.getPlayerBySessionId(session.getId());
+        PlayerVO p = TexasUtil.getPlayerByChannelId(channel.id().asShortText());
         // 玩家本次操作所下的筹码
         int chip = bp.getInChips();
 
         if (p != null && p.getRoom() != null) {
-            if(SkillResultEnum.CONTINUE.getCode().equals(SkillCardsUtil.trapSkillVerify(null, p, "B", message).getCode())) {
-                p.getRoom().betchipIn(p, chip, true);
+            if(SkillResultEnum.CONTINUE.getCode().equals(skillCardsUtil.trapSkillVerify(null, p, "B", message).getCode())) {
+                roomManager.betchipIn(p, chip, true);
             } else {
                 p.setThisRoundSkillAction("");
             }
@@ -97,12 +102,12 @@ public class PlayerManager {
     }
 
 
-    public void fold(Session session, String message) {
+    public void fold(Channel channel, String message) {
         // 弃牌 Fold，放弃本局游戏，并放弃所有已下的筹码。
-        PlayerVO p = TexasUtil.getPlayerBySessionId(session.getId());
+        PlayerVO p = TexasUtil.getPlayerByChannelId(channel.id().asShortText());
         if (p != null && p.getRoom() != null) {
-            if(SkillResultEnum.CONTINUE.getCode().equals(SkillCardsUtil.trapSkillVerify(null, p, "F", message).getCode())) {
-                p.getRoom().fold(p);
+            if(SkillResultEnum.CONTINUE.getCode().equals(skillCardsUtil.trapSkillVerify(null, p, "F", message).getCode())) {
+                roomManager.fold(p);
             } else {
                 p.setThisRoundSkillAction("");
             }
@@ -111,13 +116,13 @@ public class PlayerManager {
     }
 
 
-    public void check(Session session, String message) {
+    public void check(Channel channel, String message) {
         // 过牌
         // Check，不做任何操作过牌到下一个人，并保留下注的权利。过牌必须是在无需跟注的情况下使用，比如前面所有玩家都过牌或弃牌的情况。若前面的玩家一旦有人有下则不允许使用过牌。
-        PlayerVO p = TexasUtil.getPlayerBySessionId(session.getId());
+        PlayerVO p = TexasUtil.getPlayerByChannelId(channel.id().asShortText());
         if (p != null && p.getRoom() != null) {
-            if(SkillResultEnum.CONTINUE.getCode().equals(SkillCardsUtil.trapSkillVerify(null, p, "C", message).getCode())) {
-                p.getRoom().check(p, true);
+            if(SkillResultEnum.CONTINUE.getCode().equals(skillCardsUtil.trapSkillVerify(null, p, "C", message).getCode())) {
+                roomManager.check(p, true);
             } else {
                 p.setThisRoundSkillAction("");
             }
@@ -125,19 +130,19 @@ public class PlayerManager {
     }
 
 
-    public void standUp(Session session, String message) {
+    public void standUp(Channel channel, String message) {
         // 站起
 
     }
 
 
-    public void sitDown(Session session, String message) {
+    public void sitDown(Channel channel, String message) {
         // 坐下
 
     }
 
-    public void assignChipsNum(Session session, String message) {
-        PlayerVO currPlayer = TexasUtil.getPlayerBySessionId(session.getId());
+    public void assignChipsNum(Channel channel, String message) {
+        PlayerVO currPlayer = TexasUtil.getPlayerByChannelId(channel.id().asShortText());
         RetMsg rm = new RetMsg();
         if (currPlayer == null) {
             rm.setState(0);
@@ -167,7 +172,7 @@ public class PlayerManager {
                     }
                 }
                 if(isCheckStart) {
-                    currPlayer.getRoom().checkStart(800);
+                    roomManager.checkStart(currPlayer.getRoom(), 800);
                 }
 
             }

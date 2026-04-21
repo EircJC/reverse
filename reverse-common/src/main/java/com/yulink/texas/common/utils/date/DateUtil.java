@@ -17,6 +17,7 @@ public class DateUtil {
     public static final SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     public static final SimpleDateFormat day = new SimpleDateFormat("dd");
     public static final SimpleDateFormat standardTime = new SimpleDateFormat("yyyy-MM-dd");
+    public static final SimpleDateFormat timeStamp = new SimpleDateFormat("yyyyMMddHHmmss");
 
     private static final int TIMESTAMP_SECOND_LENGTH = 10;
     private static final DateTimeFormatter ddHHmm = DateTimeFormat.forPattern("ddHHmm");
@@ -65,6 +66,11 @@ public class DateUtil {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    public static String getTimeStampString() {
+        Date aDate = new Date();
+        return timeStamp.format(aDate);
     }
 
     public static Date getCurrentDay(DateTime dateTime) {

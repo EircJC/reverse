@@ -3,10 +3,10 @@ package com.yulink.texas.server.common.entity;
 import com.google.gson.annotations.Expose;
 import com.yulink.texas.common.card.Card;
 import com.yulink.texas.server.common.room.Room;
+import io.netty.channel.Channel;
 import java.io.Serializable;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import javax.websocket.Session;
 
 /**
  * @Author: chao.jiang
@@ -45,8 +45,10 @@ public class PlayerVO extends BetPlayer implements Serializable {
     /**
      * 用户Session
      */
-    @Expose(serialize = false, deserialize = false)
-    private Session session;
+//    @Expose(serialize = false, deserialize = false)
+//    private Session session;
+
+    private Channel channel;
     /**
      * 头像
      */
@@ -214,13 +216,23 @@ public class PlayerVO extends BetPlayer implements Serializable {
         this.userpwd = userpwd;
     }
 
-    public Session getSession() {
-        return session;
+//    public Session getSession() {
+//        return session;
+//    }
+//
+//    public void setSession(Session session) {
+//        this.session = session;
+//    }
+
+    // 添加getter和setter方法
+    public Channel getChannel() {
+        return channel;
     }
 
-    public void setSession(Session session) {
-        this.session = session;
+    public void setChannel(Channel channel) {
+        this.channel = channel;
     }
+
 
     public String getPicLogo() {
         return picLogo;

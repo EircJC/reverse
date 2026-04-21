@@ -29,6 +29,9 @@ public class PrivateRoom implements Serializable {
 	private int type;
 
 	@Expose
+	private String roomNo;
+
+	@Expose
 	private List<String> handPokers;
 
 	/**
@@ -184,6 +187,7 @@ public class PrivateRoom implements Serializable {
 	protected SkillDictionaryVO skillTrapCard;
 
 	public void setRoom(Room room) {
+		setRoomNo(room.getRoomNo());
 		setBetRoundMap(room.getBetMap());
 		setBigBet(room.getBigBet());
 		setIngamePlayers(room.getIngamePlayers());
@@ -204,6 +208,14 @@ public class PrivateRoom implements Serializable {
 
 	public void setType(int type) {
 		this.type = type;
+	}
+
+	public String getRoomNo() {
+		return roomNo;
+	}
+
+	public void setRoomNo(String roomNo) {
+		this.roomNo = roomNo;
 	}
 
 	public int getRoundMaxBet() {

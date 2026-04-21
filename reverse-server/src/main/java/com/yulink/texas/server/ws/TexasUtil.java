@@ -9,6 +9,9 @@ import com.yulink.texas.server.common.room.RoomTypeList;
 import com.yulink.texas.server.common.utils.JsonUtils;
 import com.yulink.texas.server.common.utils.SkillCardsUtil;
 import com.yulink.texas.server.common.utils.TexasStatic;
+import com.yulink.texas.server.manager.RoomManager;
+import com.yulink.texas.server.netty.NettyWebSocketHandler;
+import io.netty.channel.Channel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -23,15 +26,19 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
-import javax.websocket.Session;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
+@Component
 public class TexasUtil {
 	private static Logger logger = LogManager.getLogger(TexasUtil.class);
 
 	private static int skillAwardCount = 1;
 
+	@Autowired
+	public RoomManager roomManager;
 
 	/**
 	 * 获取一个对应级别的可用房间，直接进入
@@ -39,18 +46,38 @@ public class TexasUtil {
 	 * @param level
 	 * @return
 	 */
-	public static Room getUsableRoomThenIn(int type, int level, PlayerVO p) {
+	public Room getUsableRoomThenIn(int type, int level, PlayerVO p) {
 		List<Room> roomList = TexasStatic.roomList.get(type+"-"+level );
-		for (int i = 0; i < roomList.size(); i++) {
-			int roomstate = roomList.get(i).getRoomstate();
-			if (roomstate == 1) {
-				boolean success = inRoom(roomList.get(i), p);
-				if (success) {
-					return roomList.get(i);
-				}
-			}
+		if (roomList == null || roomList.isEmpty()) {
+			return createRoomByPlayer(type, level, p);
+		}
+		Room room = tryJoinUsableRoom(roomList, p, true);
+		if (room != null) {
+			return room;
+		}
+		room = tryJoinUsableRoom(roomList, p, false);
+		if (room != null) {
+			return room;
 		}
 		return createRoomByPlayer(type, level, p);
+	}
+
+	private Room tryJoinUsableRoom(List<Room> roomList, PlayerVO player, boolean occupiedRoomFirst) {
+		for (int i = 0; i < roomList.size(); i++) {
+			Room room = roomList.get(i);
+			if (room == null || room.getRoomstate() != 1) {
+				continue;
+			}
+			boolean occupied = getRoomPlayerCount(room) > 0;
+			if (occupiedRoomFirst != occupied) {
+				continue;
+			}
+			boolean success = inRoom(room, player);
+			if (success) {
+				return room;
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -59,14 +86,14 @@ public class TexasUtil {
 	 * <pre>
 	 * 1，检查房间是否还可加入 2，加入房间/重新查找可以进入的房间 3，改变房间状态
 	 */
-	public static boolean inRoom(Room room, PlayerVO player) {
+	public boolean inRoom(Room room, PlayerVO player) {
 		if (room == null || player == null) {
 			return false;
 		}
 		// 判断房间内是否有playerID相同的玩家（session可能不一致），将oldsession 更新
 		for(PlayerVO playerTmp: room.getIngamePlayers()) { // 游戏中玩家列表
 			if(player.getId().equals(playerTmp.getId())) {
-				playerTmp.setSession(player.getSession());
+				playerTmp.setChannel(player.getChannel());
 				// 设置房间
 				player.setRoom(room);
 				// 设置座位号
@@ -81,7 +108,7 @@ public class TexasUtil {
 				player.setRoom(room);
 				// 设置座位号
 				player.setSeatNum(playerTmp.getSeatNum());
-				playerTmp.setSession(player.getSession());
+				playerTmp.setChannel(player.getChannel());
 				return true;
 			}
 		}
@@ -106,7 +133,7 @@ public class TexasUtil {
 				// 房间满人，修改状态为不可加入
 				room.setRoomstate(0);
 			}
-			room.assignChipsForInRoom(player);
+			roomManager.assignChipsForInRoom(room, player);
 			// 成功则设置房间
 			player.setRoom(room);
 		}
@@ -116,7 +143,7 @@ public class TexasUtil {
 	/**
 	 * 退出房间
 	 */
-	public static void outRoom(PlayerVO player) {
+	public void outRoom(PlayerVO player) {
 		if (player == null || player.getRoom() == null) {
 			return;
 		}
@@ -131,7 +158,7 @@ public class TexasUtil {
 				room.donePlayerList.remove(index);
 			}
 			// 记录玩家的筹码变化
-			room.assignChipsForOutRoom(player);
+			roomManager.assignChipsForOutRoom(player);
 			// 还座位号
 			if (player.getSeatNum() != -1) {
 				room.getFreeSeatStack().push(player.getSeatNum());
@@ -140,7 +167,7 @@ public class TexasUtil {
 			// 修改房间状态为可加入
 			room.setRoomstate(1);
 			// 在游戏中的玩家数少于最低玩家数时结束游戏
-			room.checkEnd();
+			roomManager.checkEnd(room);
 			System.out.println(player.getUserName()+" 离开房间");
 		}
 	}
@@ -348,7 +375,7 @@ public class TexasUtil {
 	 * 
 	 * @param level
 	 */
-	public static Room createRoomByPlayer(int type, int level, PlayerVO player) {
+	public Room createRoomByPlayer(int type, int level, PlayerVO player) {
 		Room room = RoomTypeList.getNewRoom(type, level);
 		inRoom(room, player);
 		String key = type+"-"+level;
@@ -359,6 +386,219 @@ public class TexasUtil {
 		roomList.add(room);
 		TexasStatic.roomList.put(key, roomList);
 		return room;
+	}
+
+	public void getRoomLevelStats(Channel channel, String message) {
+		Room roomMessage = getRoomMessage(message);
+		int type = roomMessage.getType();
+		Map<String, Object> response = new LinkedHashMap<String, Object>();
+		List<Map<String, Object>> levels = new ArrayList<Map<String, Object>>();
+		response.put("type", type);
+		response.put("levels", levels);
+		for (int level = 0; level <= 2; level++) {
+			Room roomConfig = RoomTypeList.roomTypeMap.get(type + "-" + level);
+			if (roomConfig == null) {
+				continue;
+			}
+			List<Room> roomList = TexasStatic.roomList.get(type + "-" + level);
+			int roomCount = roomList == null ? 0 : roomList.size();
+			int playerCount = 0;
+			int playingPlayerCount = 0;
+			int availableRoomCount = 0;
+			if (roomList != null) {
+				for (Room room : roomList) {
+					if (room == null) {
+						continue;
+					}
+					playerCount += getRoomPlayerCount(room);
+					playingPlayerCount += room.getIngamePlayers().size();
+					if (isRoomAvailable(room)) {
+						availableRoomCount++;
+					}
+				}
+			}
+			Map<String, Object> item = new LinkedHashMap<String, Object>();
+			item.put("type", type);
+			item.put("level", level);
+			item.put("smallBet", roomConfig.getSmallBet());
+			item.put("bigBet", roomConfig.getBigBet());
+			item.put("minChips", roomConfig.getMinChips());
+			item.put("maxChips", roomConfig.getMaxChips());
+			item.put("maxPlayers", roomConfig.getMaxPlayers());
+			item.put("roomCount", roomCount);
+			item.put("playerCount", playerCount);
+			item.put("playingPlayerCount", playingPlayerCount);
+			item.put("availableRoomCount", availableRoomCount);
+			levels.add(item);
+		}
+		sendRoomLobbyMessage(channel, "onRoomLevelStats", 1, JsonUtils.toJsonAll(response, Map.class));
+	}
+
+	public void getRoomList(Channel channel, String message) {
+		Room roomMessage = getRoomMessage(message);
+		Map<String, Object> response = buildRoomListResponse(roomMessage.getType(), roomMessage.getLevel());
+		sendRoomLobbyMessage(channel, "onRoomList", 1, JsonUtils.toJsonAll(response, Map.class));
+	}
+
+	public void inRoomByRoomNo(Channel channel, String message) {
+		Room roomMessage = getRoomMessage(message);
+		PlayerVO currPlayer = getPlayerByChannelId(channel.id().asShortText());
+		if (currPlayer == null) {
+			sendRoomLobbyMessage(channel, "onEnterRoom", 0, "请先登录");
+			return;
+		}
+		Room roomConfig = RoomTypeList.roomTypeMap.get(roomMessage.getType() + "-" + roomMessage.getLevel());
+		if (roomConfig == null) {
+			sendRoomLobbyMessage(channel, "onEnterRoom", 0, "房间级别不存在");
+			return;
+		}
+		if (currPlayer.getChips() < roomConfig.getMinChips()) {
+			sendRoomLobbyMessage(channel, "onEnterRoom", 0, "筹码不足");
+			return;
+		}
+		Room room = findRoom(roomMessage.getType(), roomMessage.getLevel(), roomMessage.getRoomNo());
+		if (room == null) {
+			sendRoomLobbyMessage(channel, "onEnterRoom", 0, "房间不存在或已关闭");
+			return;
+		}
+		if (!isRoomAvailable(room) && !isPlayerInRoom(room, currPlayer)) {
+			sendRoomLobbyMessage(channel, "onEnterRoom", 0, "房间已满，请创建新房间");
+			return;
+		}
+		boolean success = inRoom(room, currPlayer);
+		if (!success) {
+			sendRoomLobbyMessage(channel, "onEnterRoom", 0, "房间已满，请创建新房间");
+			return;
+		}
+		sendEnterRoomSuccess(currPlayer, room);
+	}
+
+	public void createRoomAndIn(Channel channel, String message) {
+		Room roomMessage = getRoomMessage(message);
+		PlayerVO currPlayer = getPlayerByChannelId(channel.id().asShortText());
+		if (currPlayer == null) {
+			sendRoomLobbyMessage(channel, "onEnterRoom", 0, "请先登录");
+			return;
+		}
+		Room roomConfig = RoomTypeList.roomTypeMap.get(roomMessage.getType() + "-" + roomMessage.getLevel());
+		if (roomConfig == null) {
+			sendRoomLobbyMessage(channel, "onEnterRoom", 0, "房间级别不存在");
+			return;
+		}
+		if (currPlayer.getChips() < roomConfig.getMinChips()) {
+			sendRoomLobbyMessage(channel, "onEnterRoom", 0, "筹码不足");
+			return;
+		}
+		Room room = createRoomByPlayer(roomMessage.getType(), roomMessage.getLevel(), currPlayer);
+		sendEnterRoomSuccess(currPlayer, room);
+	}
+
+	private Map<String, Object> buildRoomListResponse(int type, int level) {
+		Room roomConfig = RoomTypeList.roomTypeMap.get(type + "-" + level);
+		List<Room> roomList = TexasStatic.roomList.get(type + "-" + level);
+		Map<String, Object> response = new LinkedHashMap<String, Object>();
+		List<Map<String, Object>> rooms = new ArrayList<Map<String, Object>>();
+		int availableRoomCount = 0;
+		response.put("type", type);
+		response.put("level", level);
+		if (roomConfig != null) {
+			response.put("smallBet", roomConfig.getSmallBet());
+			response.put("bigBet", roomConfig.getBigBet());
+			response.put("minChips", roomConfig.getMinChips());
+			response.put("maxChips", roomConfig.getMaxChips());
+			response.put("maxPlayers", roomConfig.getMaxPlayers());
+		}
+		if (roomList != null) {
+			for (Room room : roomList) {
+				if (room == null) {
+					continue;
+				}
+				boolean available = isRoomAvailable(room);
+				if (available) {
+					availableRoomCount++;
+				}
+				Map<String, Object> item = new LinkedHashMap<String, Object>();
+				item.put("roomNo", room.getRoomNo());
+				item.put("type", room.getType());
+				item.put("level", room.getLevel());
+				item.put("smallBet", room.getSmallBet());
+				item.put("bigBet", room.getBigBet());
+				item.put("maxPlayers", room.getMaxPlayers());
+				item.put("playerCount", getRoomPlayerCount(room));
+				item.put("waitPlayerCount", room.getWaitPlayers().size());
+				item.put("playingPlayerCount", room.getIngamePlayers().size());
+				item.put("gamestate", room.getGamestate().get());
+				item.put("available", available);
+				rooms.add(item);
+			}
+		}
+		response.put("rooms", rooms);
+		response.put("roomCount", rooms.size());
+		response.put("availableRoomCount", availableRoomCount);
+		return response;
+	}
+
+	private Room findRoom(int type, int level, String roomNo) {
+		if (roomNo == null || roomNo.trim().length() == 0) {
+			return null;
+		}
+		List<Room> roomList = TexasStatic.roomList.get(type + "-" + level);
+		if (roomList == null) {
+			return null;
+		}
+		for (Room room : roomList) {
+			if (room != null && roomNo.equals(room.getRoomNo())) {
+				return room;
+			}
+		}
+		return null;
+	}
+
+	private boolean isPlayerInRoom(Room room, PlayerVO player) {
+		if (room == null || player == null || player.getId() == null) {
+			return false;
+		}
+		for (PlayerVO roomPlayer : room.getWaitPlayers()) {
+			if (roomPlayer != null && player.getId().equals(roomPlayer.getId())) {
+				return true;
+			}
+		}
+		for (PlayerVO roomPlayer : room.getIngamePlayers()) {
+			if (roomPlayer != null && player.getId().equals(roomPlayer.getId())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean isRoomAvailable(Room room) {
+		if (room == null) {
+			return false;
+		}
+		return room.getRoomstate() == 1
+				&& room.getFreeSeatStack() != null
+				&& !room.getFreeSeatStack().isEmpty()
+				&& getRoomPlayerCount(room) < room.getMaxPlayers();
+	}
+
+	private void sendEnterRoomSuccess(PlayerVO currPlayer, Room room) {
+		RetMsg rm = new RetMsg();
+		rm.setAction("onEnterRoom");
+		rm.setState(1);
+		PrivateRoom pRoom = new PrivateRoom();
+		pRoom.setRoom(room);
+		rm.setMessage(JsonUtils.toJson(pRoom, PrivateRoom.class));
+		sendMsgToOne(currPlayer, JsonUtils.toJson(rm, RetMsg.class));
+		sendPlayerToOthers(currPlayer, room, "onPlayerEnterRoom");
+		roomManager.checkStart(room, 800);
+	}
+
+	private void sendRoomLobbyMessage(Channel channel, String action, int state, Object message) {
+		RetMsg rm = new RetMsg();
+		rm.setAction(action);
+		rm.setState(state);
+		rm.setMessage(message);
+		sendMsgToOne(channel, JsonUtils.toJson(rm, RetMsg.class));
 	}
 
 	/**
@@ -380,8 +620,8 @@ public class TexasUtil {
 	 * @param
 	 * @param
 	 */
-	public static void sendMessage(Session session, String message) {
-		PlayerVO p = getPlayerBySessionId(session.getId());
+	public static void sendMessage(Channel channel, String message) {
+		PlayerVO p = getPlayerByChannelId(channel.id().asShortText());
 		if (p != null) {
 			RetMsg retMsg = new RetMsg();
 			retMsg.setMessage(message);
@@ -441,36 +681,36 @@ public class TexasUtil {
 	 * @param msg
 	 */
 	public static void sendMsgToPlayer(PlayerVO player, String msg) {
-		if (player != null && player.getSession() != null) {
-			TexasWebSocketServer.sendText(player.getSession(), msg);
+		if (player != null && player.getChannel() != null) {
+			NettyWebSocketHandler.sendMessage(player.getChannel(), msg);
 		}
 	}
 
 	public static void sendMsgToOne(PlayerVO p, String msg) {
 		if (p != null) {
-			Session session = p.getSession();
-			if (session != null) {
-				TexasWebSocketServer.sendText(session, msg);
+			Channel channel = p.getChannel();
+			if (channel != null) {
+				NettyWebSocketHandler.sendMessage(channel, msg);
 				logger.info("toOne:" + msg);
 			}
 		}
 	}
 
-	public static void sendMsgToOne(Session session, String msg) {
-		if (session != null) {
-			TexasWebSocketServer.sendText(session, msg);
+	public static void sendMsgToOne(Channel channel, String msg) {
+		if (channel != null) {
+			NettyWebSocketHandler.sendMessage(channel, msg);
 			logger.info("toOne:" + msg);
 		}
 	}
 
-	public static PlayerVO getPlayerBySessionId(String sessionId) {
-		PlayerVO p = TexasStatic.loginPlayerMap.get(sessionId);
+	public static PlayerVO getPlayerByChannelId(String channelId) {
+		PlayerVO p = TexasStatic.loginPlayerMap.get(channelId);
 		return p;
 	}
 
-	public static Session getSessionByPlayer(PlayerVO p) {
-		Session session = p.getSession();
-		return session;
+	public static Channel getChannelByPlayer(PlayerVO p) {
+		Channel channel = p.getChannel();
+		return channel;
 	}
 
 	/**
@@ -700,12 +940,12 @@ public class TexasUtil {
 	 * @param session
 	 * @param message
 	 */
-	public static void inRoom(Session session, String message) {
+	public void inRoom(Channel channel, String message) {
 		Room roomMessage = getRoomMessage(message);
 		RetMsg rm = new RetMsg();
 		rm.setAction("onEnterRoom");
 		rm.setState(1);
-		PlayerVO currPlayer = getPlayerBySessionId(session.getId());
+		PlayerVO currPlayer = getPlayerByChannelId(channel.id().asShortText());
 		if (currPlayer == null) {
 			rm.setState(0);
 			rm.setMessage("请先登录");
@@ -747,6 +987,7 @@ public class TexasUtil {
 		}
 		// 查找空房间，没有则创建新房间
 		Room usableRoom = getUsableRoomThenIn(roomMessage.getType(), roomMessage.getLevel(), currPlayer);
+		logger.info("进入房间编号："+usableRoom.getRoomNo() +"  玩家编号："+currPlayer.getId()+"  玩家名称："+currPlayer.getUserName());
 		PrivateRoom pRoom=new PrivateRoom();
 		pRoom.setRoom(usableRoom);
 		String roominfo = JsonUtils.toJson(pRoom, PrivateRoom.class);
@@ -756,8 +997,8 @@ public class TexasUtil {
 		sendMsgToOne(currPlayer, retMsg);
 		// 通知所有房间内玩家，有玩家加入
 		sendPlayerToOthers(currPlayer, usableRoom, "onPlayerEnterRoom");
-		// 检查房间是否可以开始游戏,一秒等待
-		usableRoom.checkStart(5000);
+		// 检查房间是否可以开始游戏，尽快开始
+		roomManager.checkStart(usableRoom, 800);
 	}
 
 	/**
@@ -767,8 +1008,8 @@ public class TexasUtil {
 	 * @param message
 	 * @param sendOrNot 是否向退出房间的玩家发送退出成功消息
 	 */
-	public static void outRoom(Session session, String message, boolean sendOrNot) {
-		PlayerVO p = TexasStatic.loginPlayerMap.get(session.getId());
+	public void outRoom(Channel channel, String message, boolean sendOrNot) {
+		PlayerVO p = TexasStatic.loginPlayerMap.get(channel.id().asShortText());
 
 		if (sendOrNot) {
 			// 告诉自己离开
@@ -820,17 +1061,17 @@ public class TexasUtil {
 		// 通知其他玩家
 		List<PlayerVO> waitPlayers = room.getWaitPlayers();
 		for (PlayerVO p : waitPlayers) {
-			if (p != null && p.getId() != selfId) {
-				Session _session = getSessionByPlayer(p);
-				TexasWebSocketServer.sendText(_session, message);
+			if (p != null && p.getId() != null && !p.getId().equals(selfId)) {
+				Channel channel = getChannelByPlayer(p);
+				NettyWebSocketHandler.sendMessage(channel, message);
 			}
 
 		}
 		List<PlayerVO> ingamePlayers = room.getIngamePlayers();
 		for (PlayerVO p : ingamePlayers) {
-			if (p != null && p.getId() != selfId) {
-				Session _session = getSessionByPlayer(p);
-				TexasWebSocketServer.sendText(_session, message);
+			if (p != null && p.getId() != null && !p.getId().equals(selfId)) {
+				Channel channel = getChannelByPlayer(p);
+				NettyWebSocketHandler.sendMessage(channel, message);
 			}
 
 		}
