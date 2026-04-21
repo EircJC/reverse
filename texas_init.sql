@@ -75,9 +75,9 @@ LOCK TABLES `t_player` WRITE;
 
 INSERT INTO `t_player` (`id`, `wallet_address`, `username`, `userpwd`, `nickname`, `email`, `phone`, `chips`, `pic_logo`, `regdate`, `status`, `isrobot`, `type`, `remark`)
 VALUES
-	(2494,NULL,'jiangchao','e10adc3949ba59abbe56e057f20f883e',NULL,NULL,NULL,1000,'https://s1.ax1x.com/2022/09/18/xpLpdS.png','2022-09-06 21:13:04','1','0','normal',NULL),
-	(2495,NULL,'jc','e10adc3949ba59abbe56e057f20f883e',NULL,NULL,NULL,1000,'https://s1.ax1x.com/2022/09/18/xpqvsP.jpg','2022-09-06 21:13:36','1','0','normal',NULL),
-	(2504,NULL,'jc1','e10adc3949ba59abbe56e057f20f883e',NULL,NULL,NULL,1000,'https://s1.ax1x.com/2022/09/18/xpqvsP.jpg','2022-09-06 21:13:36','1','0','normal',NULL);
+	(2494,NULL,'jiangchao','e10adc3949ba59abbe56e057f20f883e',NULL,NULL,NULL,100000,'https://s1.ax1x.com/2022/09/18/xpLpdS.png','2022-09-06 21:13:04','1','0','normal',NULL),
+	(2495,NULL,'jc','e10adc3949ba59abbe56e057f20f883e',NULL,NULL,NULL,100000,'https://s1.ax1x.com/2022/09/18/xpqvsP.jpg','2022-09-06 21:13:36','1','0','normal',NULL),
+	(2504,NULL,'jc1','e10adc3949ba59abbe56e057f20f883e',NULL,NULL,NULL,100000,'https://s1.ax1x.com/2022/09/18/xpqvsP.jpg','2022-09-06 21:13:36','1','0','normal',NULL);
 
 /*!40000 ALTER TABLE `t_player` ENABLE KEYS */;
 UNLOCK TABLES;
